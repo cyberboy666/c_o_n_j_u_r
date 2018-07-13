@@ -1,30 +1,24 @@
-# About emptyExample
 
-![Screenshot of emptyExample](emptyExample.png)
+# c_o_n_j_u_r
 
-### Learning Objectives
+an alternative openframeworks backend for my video sampler [r_e_c_u_r]
 
-This example is the simplest possible openFrameworks app! It does nothing. 
+this is WIP, currently working towards feature parity with the existing omxplayer backend, and then experimenting with adding glsl shader playback/interaction (digital video synthesis) both standalone and as video processing/effects
 
-...Well, *almost* nothing. Although it may not be apparent, the emptyExample activates all of the default system states. (For example, it sets the default fill color to white; it just doesn't happen to draw anything with it.)
+## setup (note - its pretty buggy atm)
 
-The emptyExample is great for making sure that your openFrameworks development environment is compiling properly. It can also be useful as a "starter template" for making simple programs. 
+- download and install [openframeworks10] for raspberry pi following the [setup instructions] for dependacies and compiling
+- (not sure if this is needed ?) sudo raspi-config -> advanced -> gl driver -> legacy
+- installing additional python packages `pip3 install python-osc` and `pip3 install threading`
+- navigate to apps : `cd ~/openFrameworks/apps/myApps/` and clone this repo `git clone https://github.com/langolierz/c_o_n_j_u_r.git`
+- while in this dir (`cd ~/openFrameworks/apps/myApps/c_o_n_j_u_r`) compile the code `make` and run `make run` (or set up to run on boot ... )
+- navigate to r_e_c_u_r (`cd ~/r_e_c_u_r`) and checkout the c_o_n_j_u_r branch `git fetch; git checkout c_o_n_j_u_r` 
+- start r_e_c_u_r and switch the `VIDEO_BACKEND` setting
 
-The emptyExample will help you understand what are the bare necessities of an openFrameworks program. In this regard, you can think of it as a "Hello World" for OF. 
 
 
-### Expected Behavior
 
-When launching this app, you should see a light-gray screen. 
+[r_e_c_u_r]: https://github.com/langolierz/r_e_c_u_r
+[openframeworks10]: https://openframeworks.cc/versions/v0.10.0/of_v0.10.0_linuxarmv6l_release.tar.gz
+[setup instructions]: https://openframeworks.cc/setup/raspberrypi/raspberry-pi-getting-started/
 
-* There's no interaction. 
-* There's nothing to see. 
-* That's it. 
-
-Instructions for using the app:
-
-* There's nothing to do. Move along.
-
-### Other classes used in this file
-
-This example uses no other classes.
