@@ -15,6 +15,25 @@ this is WIP, currently working towards feature parity with the existing omxplaye
 - navigate to r_e_c_u_r (`cd ~/r_e_c_u_r`) and checkout the c_o_n_j_u_r branch `git fetch; git checkout c_o_n_j_u_r` 
 - start r_e_c_u_r and switch the `VIDEO_BACKEND` setting
 
+## progress
+
+as a proof of concept i started by creating a simple openframework app that listens for OpenSoundControl messages locally and uses these to control 3 ofVideoPlayers. it then sends OSC messages back with player status and position info. the modified recur code replaces any calls to the omx dbus with messages over OSC.
+
+this worked suprisingly well, there is currently one black frame between loops although i hope to close this. i figured out how to control the opacity of these players and some things like seeking and loading seems faster than omx. i have noticed that the framerate drops when playing large file (and i imagine also when heavy shaders/ effects are chained)
+
+### some things to do/try:
+
+- try getting no black frame between videos
+- passing start and stop info from python to the player
+- testing/passing the various video_settings regarding how the players interact
+- setting the background colour ?
+- seeing if fill/letterbox/strech modes are possible
+- tryi intergrating playback speed settings
+- getting rpi-camera / capture working on openframeworks (the addon wasnt compiling last i tried)
+- a pipe for loading/playing shaders , passing through parameter values and adding shader-effects to the players
+- seeing if a different video can be played on the lcd screen ?
+- experimenting with projection mapping of addon
+
 
 
 
