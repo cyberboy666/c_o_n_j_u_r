@@ -10,8 +10,6 @@ class ofApp : public ofBaseApp{
 		void draw();
 		
 		void keyPressed(int key);
-		void keyReleased(int key);
-		void gotMessage(ofMessage msg);
         void receiveMessages();
         void checkPlayerStatuses();
         void checkPlayerPositions();
