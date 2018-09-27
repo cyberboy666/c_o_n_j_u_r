@@ -70,16 +70,15 @@ void ofApp::update(){
 void ofApp::draw(){
     if(useShader == true){
         shader.begin();
-
-        shader.setUniform1f("time", ofGetElapsedTimef());
-        shader.setUniform2f("resolution", ofGetWidth(), ofGetHeight());
-    
+        shader.setUniform1f("u_time", ofGetElapsedTimef());
+        shader.setUniform2f("u_resolution", ofGetWidth(), ofGetHeight());
+        ofLog(OF_LOG_NOTICE, "the start and end are " + ofToString(aStart) + " " + ofToString(aEnd));
         for( int i = 0; i <  paramNum; i = i + 1){
             shader.setUniform1f("x" + i, shaderParams[i]);
             }
 
         if(processShader == true){
-            shader.setUniformTexture("tex0", fbo.getTexture(), 0)
+            shader.setUniformTexture("tex0", fbo.getTexture(), 0);
         //, aPlayer.getTexture().getTextureData().textureID);
             }
 
@@ -100,12 +99,12 @@ if (key == 'q'){
 
 
 void ofApp::drawPlayerWithAlpha(ofVideoPlayer player, int alpha){
-    if(player.isFrameNew()){
+    //if(player.isFrameNew()){
         ofEnableAlphaBlending();
         ofSetColor(255, 255, 255, alpha);
         player.draw(0, 0, ofGetWidth(), ofGetHeight());
         ofDisableAlphaBlending();
-        }
+     //   }
 }
 
 void ofApp::receiveMessages(){
@@ -207,17 +206,42 @@ void ofApp::receiveMessages(){
             sendFloatMessage("/player/c/position", cPlayer.getPosition());
         }
         else if(m.getAddress() == "/shader/load"){
-            shader.load(m.getArgAsString(0)); 
+                ofLog(OF_LOG_NOTICE, "trying to load from osc - the path is" + m.getArgAsString(0) );
+            shader.load("/home/pi/Shaders/shaderExample.vert",m.getArgAsString(0)); 
             processShader = m.getArgAsBool(1);
             paramNum = m.getArgAsInt(2);
             //shaderParams = { };
         }
         else if(m.getAddress() == "/shader/param"){
-            shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1)
+            shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
         }
-        else if(m.getAddress() == "/shader/show"){
-            useShader = m.getArgAsBool(0)
+        else if(m.getAddress() == "/shader/start"){
+            useShader = true;
         }
+        else if(m.getAddress() == "/shader/stop"){
+            useShader = false;
+        }
+        else if(m.getAddress() == "/dev_mode"){
+            ofLog(OF_LOG_NOTICE, "switching the resolution" );
+            if(m.getArgAsBool(0)){
+                ofSetFullscreen(0);
+                ofSetWindowShape(300,200);
+                ofSetWindowPosition(50,500);
+                fbo.allocate(ofGetWidth(), ofGetHeight());
+                }
+            else{
+                ofSetFullscreen(1);
+                //ofLog(OF_LOG_NOTICE, "the ofGetWidth and ofGetHeight after full screen are : " + ofToString(ofGetWidth()) + ofToString(ofGetHeight()));
+                fbo.allocate(ofGetScreenWidth(), ofGetScreenHeight());
+                //ofSetWindowShape(ofGetScreenWidth(),ofGetScreenHeight());
+                //ofSetWindowPosition(0,0);
+                }
+        }
+        else if(m.getAddress() == "/exit"){
+            ofLog(OF_LOG_NOTICE, "should exit now" );
+            ofExit();
+        }
+
 
 
 
