@@ -22,6 +22,9 @@ class ofApp : public ofBaseApp{
     ofxOscSender sender;
 
     ofGLESWindowSettings   settings;
+
+    ofFbo fbo;
+
     ofVideoPlayer 		aPlayer;
     ofVideoPlayer 		bPlayer;
     ofVideoPlayer 		cPlayer;
@@ -37,7 +40,13 @@ class ofApp : public ofBaseApp{
     string aStatus;
     string bStatus;
     string cStatus;
+
+    ofShader 		shader;
+    bool useShader;
+    bool processShader;
+    float shaderParams[8];
+    int paramNum;
+
     int lastTime;
-    ofShader 		nowShader;
-    ofFbo fbo;
+
 };

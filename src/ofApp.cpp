@@ -28,19 +28,16 @@ void ofApp::setup(){
     bStart = 0;
     cStart = 0;
     lastTime = 0;
-	//Uncomment this to show movies with alpha channels
-	//aPlayer.setPixelFormat(OF_PIXELS_RGBA);
+    useShader = false;
+    processShader = false;
+    shaderParams[8] = { };
+    paramNum = 0;
     
     fbo.allocate(ofGetWidth(), ofGetHeight());
         
     fbo.begin();
         ofClear(0, 0, 0, 0);
     fbo.end();
-
-    //nowShader.load("shaderExample");
-
-    
-
 
 }
 
@@ -53,52 +50,62 @@ void ofApp::update(){
 
     fbo.begin();
         ofClear(0, 0, 0, 0);
-        //nowShader.begin();
-        //    nowShader.setUniformTexture("tex0", aPlayer.getTexture(), 0);//, aPlayer.getTexture().getTextureData().textureID);
-        //    nowShader.setUniform1f("time", ofGetElapsedTimef());
-        //    nowShader.setUniform2f("resolution", ofGetWidth(), ofGetHeight());
-            if ( aStatus == "PLAYING" || aStatus == "PAUSED" ){
-                aPlayer.update();
-                bPlayer.update();
-                cPlayer.update();
-                drawPlayerWithAlpha(aPlayer, aAlpha);
-                }
-            if ( bStatus == "PLAYING" || bStatus == "PAUSED" ){
-                aPlayer.update();
-                bPlayer.update();
-                cPlayer.update();
-                drawPlayerWithAlpha(bPlayer, bAlpha);
-                }
-            if ( cStatus == "PLAYING" || cStatus == "PAUSED" ){
-                aPlayer.update();
-                bPlayer.update();
-                cPlayer.update();
-                drawPlayerWithAlpha(cPlayer, cAlpha);
-                }
-              
-            //}
-        //nowShader.end();            
+
+        if ( aStatus == "PLAYING" || aStatus == "PAUSED" ){
+            aPlayer.update();
+            drawPlayerWithAlpha(aPlayer, aAlpha);
+            }
+        if ( bStatus == "PLAYING" || bStatus == "PAUSED" ){
+            bPlayer.update();
+            drawPlayerWithAlpha(bPlayer, bAlpha);
+            }
+        if ( cStatus == "PLAYING" || cStatus == "PAUSED" ){
+            cPlayer.update();
+            drawPlayerWithAlpha(cPlayer, cAlpha);
+            }
     fbo.end();  
-}
+    }
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-    fbo.draw(0, 0);
-}
+    if(useShader == true){
+        shader.begin();
+
+        shader.setUniform1f("time", ofGetElapsedTimef());
+        shader.setUniform2f("resolution", ofGetWidth(), ofGetHeight());
+    
+        for( int i = 0; i <  paramNum; i = i + 1){
+            shader.setUniform1f("x" + i, shaderParams[i]);
+            }
+
+        if(processShader == true){
+            shader.setUniformTexture("tex0", fbo.getTexture(), 0)
+        //, aPlayer.getTexture().getTextureData().textureID);
+            }
+
+        fbo.draw(0, 0);
+        shader.end();
+        }
+    else{
+        fbo.draw(0,0);
+        }
+    }
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
 if (key == 'q'){
         ofExit();
+        }
     }
-}
 
 
 void ofApp::drawPlayerWithAlpha(ofVideoPlayer player, int alpha){
-    ofEnableAlphaBlending();
-    ofSetColor(255, 255, 255, alpha);
-    player.draw(0, 0, ofGetWidth(), ofGetHeight());
-    ofDisableAlphaBlending();
+    if(player.isFrameNew()){
+        ofEnableAlphaBlending();
+        ofSetColor(255, 255, 255, alpha);
+        player.draw(0, 0, ofGetWidth(), ofGetHeight());
+        ofDisableAlphaBlending();
+        }
 }
 
 void ofApp::receiveMessages(){
@@ -198,6 +205,18 @@ void ofApp::receiveMessages(){
         }
         else if(m.getAddress() == "/player/c/get_position"){
             sendFloatMessage("/player/c/position", cPlayer.getPosition());
+        }
+        else if(m.getAddress() == "/shader/load"){
+            shader.load(m.getArgAsString(0)); 
+            processShader = m.getArgAsBool(1);
+            paramNum = m.getArgAsInt(2);
+            //shaderParams = { };
+        }
+        else if(m.getAddress() == "/shader/param"){
+            shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1)
+        }
+        else if(m.getAddress() == "/shader/show"){
+            useShader = m.getArgAsBool(0)
         }
 
 
