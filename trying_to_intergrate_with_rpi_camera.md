@@ -18,5 +18,34 @@ flash a sd card with a fresh raspbian-lite-jessie (2017-07-05-raspbian-jessie-li
 
 this could take some time ! if it works on jessie/of9.8 i will try the recur setup process from a fresh image on this system as a possible workaround. i have a feeling though that this will break/cause problems with other things
 
+## the steps:
+
+- flash sd card
+- change keyboard layout `sudo raspi-config` ... and add auto login
+- add wifi address : 
+```
+network={
+  ssid="YOUR_SSID"
+  psk="YOUR_PASSWORD"
+}
+```
+- `sudo apt update` and `sudo apt upgrade` , reboot...
+- mount usb and copy over openframeworks zip : 
+```
+sudo mkdir /media/usb
+sudo chmod 775 /media/usb
+sudo mount -t vfat /dev/sda1 /media/usb
+```
+- `mkdir openFrameworks; tar vxfz of_v0.9.8_linuxarmv6l_release.tar.gz -C openFrameworks --strip-components 1`
+- install dependancies ... 
+- try running some openframework , shaders dont work,,, video does.
+- install git `sudo apt-get git`
+- install ofxRPi app... `git clone https://github.com/jvcleave/ofxRPiCameraVideoGrabber.git`
+- try it owt !
+
+### compiling and working for jessie + of9 + master(branch)
+
+### compiling and working for jessie + of10 + stretch(branch)
+
 [picamera]: https://picamera.readthedocs.io/en/release-1.13/
 [ofxRPiCameraVideoGrabber]: https://github.com/jvcleave/ofxRPiCameraVideoGrabber
