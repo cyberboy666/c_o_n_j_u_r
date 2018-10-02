@@ -2,6 +2,8 @@
 
 #include "ofMain.h"
 #include "ofxOsc.h"
+#include "ofAppEGLWindow.h"
+#include "ofxRPiCameraVideoGrabber.h"
 
 class ofApp : public ofBaseApp{
 	public:
@@ -40,6 +42,10 @@ class ofApp : public ofBaseApp{
     string aStatus;
     string bStatus;
     string cStatus;
+
+    ofxRPiCameraVideoGrabber videoGrabber;
+    OMXCameraSettings omxCameraSettings;
+    bool capturePreview;
 
     ofShader 		shader;
     bool useShader;

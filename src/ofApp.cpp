@@ -15,6 +15,23 @@ void ofApp::setup(){
     sender.setup("localhost", 9000);
 
 
+    //omxCameraSettings.width = ofGetWidth();
+    //omxCameraSettings.height = ofGetHeight();
+    omxCameraSettings.width = 640;
+    omxCameraSettings.height = 480;
+    omxCameraSettings.framerate = 30;
+    omxCameraSettings.enableTexture = true;
+
+    omxCameraSettings.recordingFilePath = "/home/pi/Videos/";
+    
+    videoGrabber.setup(omxCameraSettings);
+    //videoGrabber.setWhiteBalance("off");
+    //videoGrabber.setShutterSpeed(1000);
+    //videoGrabber.saveStateToFile();
+    //videoGrabber.setAutoShutter(false);
+    //videoGrabber.setExposurePreset("off");
+
+    capturePreview = false;
     aStatus = "EMPTY";
     bStatus = "EMPTY";
     cStatus = "EMPTY";
@@ -50,18 +67,22 @@ void ofApp::update(){
 
     fbo.begin();
         ofClear(0, 0, 0, 0);
-
-        if ( aStatus == "PLAYING" || aStatus == "PAUSED" ){
-            aPlayer.update();
-            drawPlayerWithAlpha(aPlayer, aAlpha);
+        if (capturePreview){ // && videoGrabber.isFrameNew()){
+            videoGrabber.draw();
             }
-        if ( bStatus == "PLAYING" || bStatus == "PAUSED" ){
-            bPlayer.update();
-            drawPlayerWithAlpha(bPlayer, bAlpha);
-            }
-        if ( cStatus == "PLAYING" || cStatus == "PAUSED" ){
-            cPlayer.update();
-            drawPlayerWithAlpha(cPlayer, cAlpha);
+        else{
+            if ( aStatus == "PLAYING" || aStatus == "PAUSED" ){
+                aPlayer.update();
+                drawPlayerWithAlpha(aPlayer, aAlpha);
+                }
+            if ( bStatus == "PLAYING" || bStatus == "PAUSED" ){
+                bPlayer.update();
+                drawPlayerWithAlpha(bPlayer, bAlpha);
+                }
+            if ( cStatus == "PLAYING" || cStatus == "PAUSED" ){
+                cPlayer.update();
+                drawPlayerWithAlpha(cPlayer, cAlpha);
+                }
             }
     fbo.end();  
     }
@@ -234,6 +255,14 @@ void ofApp::receiveMessages(){
         }
         else if(m.getAddress() == "/shader/stop"){
             useShader = false;
+        }
+        else if(m.getAddress() == "/capture/preview/start"){
+            ofLog(OF_LOG_NOTICE, "starting the capture" );
+            capturePreview = true;
+        }
+        else if(m.getAddress() == "/capture/preview/stop"){
+            ofLog(OF_LOG_NOTICE, "stopping the capture" );
+            capturePreview = false;
         }
         else if(m.getAddress() == "/dev_mode"){
             ofLog(OF_LOG_NOTICE, "switching the resolution" );

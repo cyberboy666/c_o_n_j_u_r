@@ -5,9 +5,10 @@
 int main( ){
 
 	//ofSetupOpenGL(1024,768, OF_WINDOW);			// <-------- setup the GL context
-    ofSetupOpenGL(1024,768, OF_WINDOW);
+    //ofSetupOpenGL(1024,768, OF_WINDOW);
 	ofGLESWindowSettings settings;
-	settings.glesVersion = 2;
+    settings.setSize(1024,768);
+	settings.setGLESVersion(2);
 	ofCreateWindow(settings);
 
 	// this kicks off the running of my app
