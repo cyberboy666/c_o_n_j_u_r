@@ -1,51 +1,41 @@
-# notes on intergration with rpi camera.
+# notes on intergration with rpi camera and piCaptureSd1.
 
-currently i am using a python package called [picamera] to intergrate the raspi camera/capture device with recur. this works fine with the current setup my pi is running:
+currently i am using a python package called [picamera] to intergrate the raspi camera/ [capture device] with recur. this works quite well for standand preview / recording. 
 
-- rpi 3
-- openframeworks version 10.0
-- raspberian stretch 9
+in order to run processing shaders on the live input i would need to put the camera input into a texture in openframeworks. there is an openframeworks addon called [ofxRPiCameraVideoGrabber] designed for this. 
 
-in order to run processing shaders on the live input i would need to put the camera input into a texture in openframeworks. there is an openframeworks addon called [ofxRPiCameraVideoGrabber] designed for this. however on the above setup this does dont work. when i run the master branch of the addon it fails to compile (i gather due to being incompadable with of10 ?), however when i switch to a branch called `stretch` which includes commits added to make the addon of10 compadable it doesnt error but instead hanging indefinately (i think i left it running over night once) while compiling.
+### configuring the piCapture device:
 
-i tried switching to of9.8 for comparison but that doesnt seem to compile on this version of rasbian ?
+displaying the capture input by default `raspivid -o` gives a glitchy mess: ![image1][image1] ,
 
-## things to try:
+it is recommended by [lintest] to use `raspivid  –md 6 –awbg 1.0,1.0 –awb off –ex off -o` which gives a nice picture: ![image2][image2],
 
-i will run an experiment to see what combination of rasbian and of works with the app:
+these settings break down to the following:
 
-flash a sd card with a fresh raspbian-lite-jessie (2017-07-05-raspbian-jessie-lite.zip) and install openframeworks9.8 with ofxRPiCameraVideoGrabber, then try with openframeworks10.0 and ofxRPiCameraVideoGrabber. finally try both combinations of of with a fresh version of raspbian-lite-stretch (2018-06-27) for comparison.
+- setting the sensor-mode to 6 , which sets : Size=640x480	Aspect Ratio=4:3	Frame rates=42.1-60fps	FOV=Full	Binning=2x2 plus skip. this is the only way i can set to control these settings (besides size which can be manually set by `-w` and `-h`)
+- awbgains to 1.0 , 1.0 (the blue and gains when awb is off)
+- auto white balance off
+- auto exposure off
 
-this could take some time ! if it works on jessie/of9.8 i will try the recur setup process from a fresh image on this system as a possible workaround. i have a feeling though that this will break/cause problems with other things
+picamera, the python package i was using has the ability to change these settings when piCapture is being used , giving a nice image to preview and record.
 
-## the steps:
+### the problem:
 
-- flash sd card
-- change keyboard layout `sudo raspi-config` ... and add auto login
-- add wifi address : 
-```
-network={
-  ssid="YOUR_SSID"
-  psk="YOUR_PASSWORD"
-}
-```
-- `sudo apt update` and `sudo apt upgrade` , reboot...
-- mount usb and copy over openframeworks zip : 
-```
-sudo mkdir /media/usb
-sudo chmod 775 /media/usb
-sudo mount -t vfat /dev/sda1 /media/usb
-```
-- `mkdir openFrameworks; tar vxfz of_v0.9.8_linuxarmv6l_release.tar.gz -C openFrameworks --strip-components 1`
-- install dependancies ... 
-- try running some openframework , shaders dont work,,, video does.
-- install git `sudo apt-get git`
-- install ofxRPi app... `git clone https://github.com/jvcleave/ofxRPiCameraVideoGrabber.git`
-- try it owt !
+ofxRPiCameraVideoGrabber, the openframeworks addon does have a number of camera settings that can be configured (including turning off auto exposure and turning off auto white balance) however it does not include any settings for the awbg or the sensor-mode. no awbg means a very green image when awb is off. no sensor mode means the display continues to be a glitchy mess, even after setting the width/height of the of object to 640x480. ![image 3][image 3]
 
-### compiling and working for jessie + of9 + master(branch)
+under the hood ofxRPiCameraVideoGrabber seems to be talking directly to OpenMax to configure these settings. this differs from the `raspivid` and `picamera` packages which seems to use the MMAL API. according to [this thread] in the rpi forums the MMAL API wraps over OpenMax so it should be possible still to access these settings although it also sounds quite difficult / beyond my knowledge.
 
-### compiling and working for jessie + of10 + stretch(branch)
+at this stage the options i can see are:
+- no real-time processing of live input in openframeworks from captureSd1 (a shame ! , although could still have the option when using the piCamera which works fine without access to these settings
+- edit the ofxRPiCameraVideoGrabber addon to include control over these parameters
+- somehow figure out another way to get texture objects from the camera into openframeworks (this seems even futher beyond me !)
 
+
+[capture device]: https://lintestsystems.com/products/picapture-sd1
 [picamera]: https://picamera.readthedocs.io/en/release-1.13/
 [ofxRPiCameraVideoGrabber]: https://github.com/jvcleave/ofxRPiCameraVideoGrabber
+[lintest]: https://lintestsystems.com/documentation
+[this thread]: https://www.raspberrypi.org/forums/viewtopic.php?t=71915
+[image 1]: /documentation/image1.png
+[image 2]: /documentation/image2.png
+[image 3]: /documentation/image3.png
