@@ -6,30 +6,13 @@ void ofApp::setup(){
 	ofBackground(0, 0, 0);
 	ofSetVerticalSync(false);
     ofHideCursor();    
-    //ofSetFullscreen(0);
+    //ofSetFullscreen(1);
     // toggle these for dev mode ?
     ofSetWindowShape(300,200);
     ofSetWindowPosition(50,500);
 
     receiver.setup(8000);
     sender.setup("localhost", 9000);
-
-
-    //omxCameraSettings.width = ofGetWidth();
-    //omxCameraSettings.height = ofGetHeight();
-    omxCameraSettings.width = 640;
-    omxCameraSettings.height = 480;
-    omxCameraSettings.framerate = 30;
-    omxCameraSettings.enableTexture = true;
-
-    omxCameraSettings.recordingFilePath = "/home/pi/Videos/";
-    
-    videoGrabber.setup(omxCameraSettings);
-    //videoGrabber.setWhiteBalance("off");
-    //videoGrabber.setShutterSpeed(1000);
-    //videoGrabber.saveStateToFile();
-    //videoGrabber.setAutoShutter(false);
-    //videoGrabber.setExposurePreset("off");
 
     capturePreview = false;
     aStatus = "EMPTY";
@@ -68,9 +51,10 @@ void ofApp::update(){
     fbo.begin();
         ofClear(0, 0, 0, 0);
         if (capturePreview){ // && videoGrabber.isFrameNew()){
+            //videoGrabber.draw(0,0,640,480);
             videoGrabber.draw();
             }
-        else{
+            else{
             if ( aStatus == "PLAYING" || aStatus == "PAUSED" ){
                 aPlayer.update();
                 drawPlayerWithAlpha(aPlayer, aAlpha);
@@ -258,11 +242,14 @@ void ofApp::receiveMessages(){
         }
         else if(m.getAddress() == "/capture/preview/start"){
             ofLog(OF_LOG_NOTICE, "starting the capture" );
+            setupCapture();
             capturePreview = true;
         }
         else if(m.getAddress() == "/capture/preview/stop"){
             ofLog(OF_LOG_NOTICE, "stopping the capture" );
+            videoGrabber.close();
             capturePreview = false;
+
         }
         else if(m.getAddress() == "/dev_mode"){
             ofLog(OF_LOG_NOTICE, "switching the resolution" );
@@ -287,6 +274,22 @@ void ofApp::receiveMessages(){
 
     }
 }
+
+void ofApp::setupCapture(){
+    //omxCameraSettings.width = ofGetWidth();
+    //omxCameraSettings.height = ofGetHeight();
+    //omxCameraSettings.width = 640;
+    //omxCameraSettings.height = 480;
+    omxCameraSettings.framerate = 30;
+    //omxCameraSettings.enableTexture = true;
+    omxCameraSettings.recordingFilePath = "/home/pi/Videos/";
+    videoGrabber.setup(omxCameraSettings);
+    //videoGrabber.setWhiteBalance("off");
+    //videoGrabber.setShutterSpeed(1000);
+    //videoGrabber.saveStateToFile();
+    videoGrabber.setAutoShutter(false);
+    videoGrabber.setExposurePreset("off");
+    }
 
 void ofApp::checkPlayerStatuses(){
     //a player

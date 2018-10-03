@@ -19,6 +19,7 @@ class ofApp : public ofBaseApp{
         void sendStringMessage(string address, string value);
         void drawPlayerWithAlpha(ofVideoPlayer player, int alpha);
         void updateStatus(string playerName, string status);
+        void setupCapture();
 
     ofxOscReceiver receiver;
     ofxOscSender sender;
