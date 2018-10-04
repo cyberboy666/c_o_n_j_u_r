@@ -30,7 +30,7 @@ void ofApp::setup(){
     lastTime = 0;
     useShader = false;
     processShader = false;
-    shaderParams[8] = { };
+    shaderParams[4] = { };
     paramNum = 0;
     
     fbo.allocate(ofGetWidth(), ofGetHeight());
@@ -82,7 +82,7 @@ void ofApp::draw(){
             }
 
         if(true){
-            shader.setUniformTexture("tex0", fbo.getTexture(), fbo.getTexture().getTextureData().textureID);
+            shader.setUniformTexture("u_tex0", fbo.getTexture(), fbo.getTexture().getTextureData().textureID);
         //, aPlayer.getTexture().getTextureData().textureID);
             }
 
@@ -225,10 +225,10 @@ void ofApp::receiveMessages(){
             sendFloatMessage("/player/c/position", cPlayer.getPosition());
         }
         else if(m.getAddress() == "/shader/load"){
-                ofLog(OF_LOG_NOTICE, "trying to load from osc - the path is" + m.getArgAsString(0) );
             shader.load("/home/pi/Shaders/default.vert",m.getArgAsString(0)); 
             processShader = m.getArgAsBool(1);
             paramNum = m.getArgAsInt(2);
+
             //shaderParams = { };
         }
         else if(m.getAddress() == "/shader/param"){
