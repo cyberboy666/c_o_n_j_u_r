@@ -4,6 +4,8 @@
 #include "ofxOsc.h"
 #include "ofAppEGLWindow.h"
 #include "ofxRPiCameraVideoGrabber.h"
+#include "ofxXmlSettings.h"
+#include "videoPlayer.h"
 
 class ofApp : public ofBaseApp{
 	public:
@@ -13,11 +15,12 @@ class ofApp : public ofBaseApp{
 		
 		void keyPressed(int key);
         void receiveMessages();
+        void setFrameSizeFromFile();
         void checkPlayerStatuses();
         void checkPlayerPositions();
         void sendFloatMessage(string address, float value);
         void sendStringMessage(string address, string value);
-        void drawPlayerWithAlpha(ofVideoPlayer player, int alpha);
+        void drawPlayerIfPlayingOrPaused(videoPlayer player);
         void updateStatus(string playerName, string status);
         void setupCapture();
 
@@ -25,24 +28,14 @@ class ofApp : public ofBaseApp{
     ofxOscSender sender;
 
     ofGLESWindowSettings   settings;
+    ofxXmlSettings xmlSettings;
 
     ofFbo fbo;
 
-    ofVideoPlayer 		aPlayer;
-    ofVideoPlayer 		bPlayer;
-    ofVideoPlayer 		cPlayer;
-    int aAlpha;
-    int bAlpha;
-    int cAlpha;
-    float aEnd;
-    float bEnd;
-    float cEnd;
-    float aStart;
-    float bStart;
-    float cStart;
-    string aStatus;
-    string bStatus;
-    string cStatus;
+    videoPlayer 		aPlayer;
+    videoPlayer 		bPlayer;
+    videoPlayer 		cPlayer;
+
 
     ofxRPiCameraVideoGrabber videoGrabber;
     OMXCameraSettings omxCameraSettings;

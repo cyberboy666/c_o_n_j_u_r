@@ -8,25 +8,36 @@ void ofApp::setup(){
     ofHideCursor();    
     //ofSetFullscreen(1);
     // toggle these for dev mode ?
-    ofSetWindowShape(300,200);
-    ofSetWindowPosition(50,500);
+
+    setFrameSizeFromFile();
+
+
+
 
     receiver.setup(8000);
     sender.setup("localhost", 9000);
 
     capturePreview = false;
-    aStatus = "EMPTY";
-    bStatus = "EMPTY";
-    cStatus = "EMPTY";
-    aAlpha = 255;
-    bAlpha = 255;
-    cAlpha = 255;
-    aEnd = 1;
-    bEnd = 1;
-    cEnd = 1;
-    aStart = 0;
-    bStart = 0;
-    cStart = 0;
+
+    aPlayer.setup("a");
+    bPlayer.setup("b");
+    cPlayer.setup("c");
+
+    //aStatus = "EMPTY";
+    //bStatus = "EMPTY";
+    //cStatus = "EMPTY";
+    //aAlpha = 255;
+    //bAlpha = 255;
+    //cAlpha = 255;
+    //aEnd = 1;
+    //bEnd = 1;
+    //cEnd = 1;
+    //aStart = 0;
+    //bStart = 0;
+    //cStart = 0;
+    //aSpeed = 1;
+    //bSpeed = 1;
+    //cSpeed = 1;
     lastTime = 0;
     useShader = false;
     processShader = false;
@@ -49,24 +60,15 @@ void ofApp::update(){
     checkPlayerPositions();
 
     fbo.begin();
-        ofClear(0, 0, 0, 0);
+        //ofClear(0, 0, 0, 0);
         if (capturePreview){ // && videoGrabber.isFrameNew()){
             //videoGrabber.draw(0,0,640,480);
             videoGrabber.draw();
             }
-            else{
-            if ( aStatus == "PLAYING" || aStatus == "PAUSED" ){
-                aPlayer.update();
-                drawPlayerWithAlpha(aPlayer, aAlpha);
-                }
-            if ( bStatus == "PLAYING" || bStatus == "PAUSED" ){
-                bPlayer.update();
-                drawPlayerWithAlpha(bPlayer, bAlpha);
-                }
-            if ( cStatus == "PLAYING" || cStatus == "PAUSED" ){
-                cPlayer.update();
-                drawPlayerWithAlpha(cPlayer, cAlpha);
-                }
+        else{
+            drawPlayerIfPlayingOrPaused(aPlayer);
+            drawPlayerIfPlayingOrPaused(bPlayer);
+            drawPlayerIfPlayingOrPaused(cPlayer);
             }
     fbo.end();  
     }
@@ -78,7 +80,7 @@ void ofApp::draw(){
         shader.setUniform1f("u_time", ofGetElapsedTimef());
         shader.setUniform2f("u_resolution", ofGetWidth(), ofGetHeight());
         for( int i = 0; i <  paramNum; i = i + 1){
-            shader.setUniform1f("x" + i, shaderParams[i]);
+            shader.setUniform1f("u_x" + ofToString(i), shaderParams[i]);
             }
 
         if(true){
@@ -101,14 +103,34 @@ if (key == 'q'){
         }
     }
 
+void ofApp::setFrameSizeFromFile(){
 
-void ofApp::drawPlayerWithAlpha(ofVideoPlayer player, int alpha){
+    xmlSettings.loadFile("settings.xml");
+    bool isDevMode = xmlSettings.getValue("settings:isDevMode", true);
+
+    if(isDevMode){
+        ofSetFullscreen(0);
+        ofSetWindowShape(300,200);
+        ofSetWindowPosition(50,500);
+        fbo.allocate(ofGetWidth(), ofGetHeight());
+        }
+    else{
+        ofSetFullscreen(1);
+        fbo.allocate(ofGetScreenWidth(), ofGetScreenHeight());
+        }
+}
+
+void ofApp::drawPlayerIfPlayingOrPaused(videoPlayer player){
     //if(player.isFrameNew()){
+    
+    if ( player.status == "PLAYING" || player.status == "PAUSED" ){
+        
+        player.update();
         ofEnableAlphaBlending();
-        ofSetColor(255, 255, 255, alpha);
+        ofSetColor(255, 255, 255, player.alpha);
         player.draw(0, 0, ofGetWidth(), ofGetHeight());
         ofDisableAlphaBlending();
-     //   }
+        }
 }
 
 void ofApp::receiveMessages(){
@@ -117,45 +139,54 @@ void ofApp::receiveMessages(){
         receiver.getNextMessage(m);
         
         if(m.getAddress() == "/player/a/load"){
-            aPlayer.loadAsync(m.getArgAsString(0)); 
+            aPlayer.loadPlayer(m.getArgAsString(0), m.getArgAsFloat(1), m.getArgAsFloat(2), m.getArgAsFloat(3) );
+            //aPlayer.loadAsync(m.getArgAsString(0)); 
             //aPlayer.load(m.getArgAsString(0)); 
-            aStart = m.getArgAsFloat(1);
-            aEnd = m.getArgAsFloat(2);
-            aPlayer.setSpeed(m.getArgAsFloat(3));
-            ofLog(OF_LOG_NOTICE, "the start and end are " + ofToString(aStart) + " " + ofToString(aEnd));
+            //aStart = m.getArgAsFloat(1);
+            //aEnd = m.getArgAsFloat(2);
+            //aSpeed = m.getArgAsFloat(3);
+            //aPlayer.setSpeed(aSpeed);
+            //ofLog(OF_LOG_NOTICE, "the start and end are " + ofToString(aStart) + " " + ofToString(aEnd));
             updateStatus("a", "LOADING");
         }
         else if(m.getAddress() == "/player/b/load"){
-            bPlayer.loadAsync(m.getArgAsString(0));
+            bPlayer.loadPlayer(m.getArgAsString(0), m.getArgAsFloat(1), m.getArgAsFloat(2), m.getArgAsFloat(3) );
+            //bPlayer.loadAsync(m.getArgAsString(0));
             //bPlayer.load(m.getArgAsString(0));
-            bStart = m.getArgAsFloat(1);
-            bEnd = m.getArgAsFloat(2);
-            bPlayer.setSpeed(m.getArgAsFloat(3));
-            ofLog(OF_LOG_NOTICE, "the start and end are " + ofToString(bStart) + " " + ofToString(bEnd));
+            //bStart = m.getArgAsFloat(1);
+            //bEnd = m.getArgAsFloat(2);
+            //bSpeed = m.getArgAsFloat(3);
+            //bPlayer.setSpeed(bSpeed);
+            //ofLog(OF_LOG_NOTICE, "the start and end are " + ofToString(bStart) + " " + ofToString(bEnd));
             updateStatus("b", "LOADING");
         }
         else if(m.getAddress() == "/player/c/load"){
-            cPlayer.loadAsync(m.getArgAsString(0));
+            cPlayer.loadPlayer(m.getArgAsString(0), m.getArgAsFloat(1), m.getArgAsFloat(2), m.getArgAsFloat(3) );
+            //cPlayer.loadAsync(m.getArgAsString(0));
             //cPlayer.load(m.getArgAsString(0));
-            cStart = m.getArgAsFloat(1);
-            cEnd = m.getArgAsFloat(2);
-            cPlayer.setSpeed(m.getArgAsFloat(3));
-            ofLog(OF_LOG_NOTICE, "the start and end are " + ofToString(cStart) + " " + ofToString(cEnd));
+            //cStart = m.getArgAsFloat(1);
+            //cEnd = m.getArgAsFloat(2);
+            //cSpeed = m.getArgAsFloat(3);
+            //cPlayer.setSpeed(cSpeed);
+            //ofLog(OF_LOG_NOTICE, "the start, end and speed is " + ofToString(cStart) + " " + ofToString(cEnd) + " " + ofToString(cSpeed));
             updateStatus("c", "LOADING");
         }
         else if(m.getAddress() == "/player/a/play"){
-            aPlayer.setPaused(false);
-            aAlpha = 255;
+            aPlayer.playPlayer();
+            //aPlayer.setPaused(false);
+            //aAlpha = 255;
             updateStatus("a", "PLAYING");
         }
         else if(m.getAddress() == "/player/b/play"){
-            bPlayer.setPaused(false);
-            bAlpha = 255;
+            bPlayer.playPlayer();            
+            //bPlayer.setPaused(false);
+            //bAlpha = 255;
             updateStatus("b", "PLAYING");
         }
         else if(m.getAddress() == "/player/c/play"){
-            cPlayer.setPaused(false);
-            cAlpha = 255;
+            cPlayer.playPlayer();            
+            //cPlayer.setPaused(false);
+            //cAlpha = 255;
             updateStatus("c", "PLAYING");
         }
         else if(m.getAddress() == "/player/a/pause"){
@@ -171,13 +202,13 @@ void ofApp::receiveMessages(){
             updateStatus("c", "PAUSED");
         }
         else if(m.getAddress() == "/player/a/alpha"){
-            aAlpha = m.getArgAsInt(0);
+            aPlayer.alpha = m.getArgAsInt(0);
         }
         else if(m.getAddress() == "/player/b/alpha"){
-            bAlpha = m.getArgAsInt(0);
+            bPlayer.alpha = m.getArgAsInt(0);
         }
         else if(m.getAddress() == "/player/c/alpha"){
-            cAlpha = m.getArgAsInt(0);
+            cPlayer.alpha = m.getArgAsInt(0);
         }
         else if(m.getAddress() == "/player/a/position"){
             aPlayer.setPosition(m.getArgAsFloat(0)); // this is a percentage...
@@ -189,29 +220,38 @@ void ofApp::receiveMessages(){
             cPlayer.setPosition(m.getArgAsFloat(0));
         }
         else if(m.getAddress() == "/player/a/speed"){
-            aPlayer.setSpeed(m.getArgAsFloat(0));
-            ofLog(OF_LOG_NOTICE, "the new speed is " + ofToString(aPlayer.getSpeed()));
+            aPlayer.setSpeedTo(m.getArgAsFloat(0));            
+            //aSpeed = m.getArgAsFloat(0);
+            //aPlayer.setSpeed(aSpeed);
+            //ofLog(OF_LOG_NOTICE, "the new speed is " + ofToString(aPlayer.getSpeed()));
         }
         else if(m.getAddress() == "/player/b/speed"){
-            bPlayer.setSpeed(m.getArgAsFloat(0));
-            ofLog(OF_LOG_NOTICE, "the new speed is " + ofToString(bPlayer.getSpeed()));
+            bPlayer.setSpeedTo(m.getArgAsFloat(0));            
+            //bSpeed = m.getArgAsFloat(0);
+            //bPlayer.setSpeed(bSpeed);
+            //ofLog(OF_LOG_NOTICE, "the new speed is " + ofToString(bPlayer.getSpeed()));
         }
         else if(m.getAddress() == "/player/c/speed"){
-            cPlayer.setSpeed(m.getArgAsFloat(0));
-            ofLog(OF_LOG_NOTICE, "the new speed is " + ofToString(cPlayer.getSpeed()));
+            cPlayer.setSpeedTo(m.getArgAsFloat(0));            
+            //cSpeed = m.getArgAsFloat(0);
+            //cPlayer.setSpeed(cSpeed);
+            //ofLog(OF_LOG_NOTICE, "the new speed is " + ofToString(cPlayer.getSpeed()));
         }
         else if(m.getAddress() == "/player/a/quit"){
-            aPlayer.stop();
+            aPlayer.quitPlayer();
+            //aPlayer.stop();
             updateStatus("a", "STOPPED");
             //aPlayer.close();
         }
         else if(m.getAddress() == "/player/b/quit"){
-            bPlayer.stop();            
+            bPlayer.quitPlayer();            
+            //bPlayer.stop();            
             updateStatus("b", "STOPPED");
             //bPlayer.close();
         }
         else if(m.getAddress() == "/player/c/quit"){
-            cPlayer.stop();   
+            cPlayer.quitPlayer();            
+            //cPlayer.stop();   
             updateStatus("c", "STOPPED");         
             //cPlayer.close();
         }
@@ -253,16 +293,9 @@ void ofApp::receiveMessages(){
         }
         else if(m.getAddress() == "/dev_mode"){
             ofLog(OF_LOG_NOTICE, "switching the resolution" );
-            if(m.getArgAsBool(0)){
-                ofSetFullscreen(0);
-                ofSetWindowShape(300,200);
-                ofSetWindowPosition(50,500);
-                fbo.allocate(ofGetWidth(), ofGetHeight());
-                }
-            else{
-                ofSetFullscreen(1);
-                fbo.allocate(ofGetScreenWidth(), ofGetScreenHeight());
-                }
+            xmlSettings.setValue("settings:isDevMode", m.getArgAsBool(0));
+            xmlSettings.saveFile("settings.xml");
+            setFrameSizeFromFile();
         }
         else if(m.getAddress() == "/exit"){
             ofLog(OF_LOG_NOTICE, "should exit now" );
@@ -292,26 +325,59 @@ void ofApp::setupCapture(){
     }
 
 void ofApp::checkPlayerStatuses(){
+    bool aIsLoaded = aPlayer.ifLoading();
+    if(aIsLoaded){updateStatus("a", "LOADED");}
+    bool bIsLoaded = bPlayer.ifLoading();
+    if(bIsLoaded){updateStatus("b", "LOADED");}
+    bool cIsLoaded = cPlayer.ifLoading();
+    if(cIsLoaded){updateStatus("c", "LOADED");}
+
+    bool aIsFinished = aPlayer.ifPlaying();
+    if(aIsFinished){updateStatus("a", "FINISHED");}
+    bool bIsFinished = bPlayer.ifPlaying();
+    if(bIsFinished){updateStatus("b", "FINISHED");}
+    bool cIsFinished = cPlayer.ifPlaying();
+    if(cIsFinished){updateStatus("c", "FINISHED");}
+}
+
+/*void ofApp::oldCheckPlayerStatuses(){
     //a player
     if( aStatus == "LOADING"){
         if(aPlayer.isLoaded()){
-            if(aStart > 0){
+    //get begin point based on direction
+            int beginPoint = aStart;
+            if(aSpeed < 0 ){
+                beginPoint = aEnd;
+                }
+            if(beginPoint != 0){
                 aPlayer.setPaused(false);
                 ofLog(OF_LOG_NOTICE, "the playing position is " + ofToString(aPlayer.getPosition()));
                 if(aPlayer.getPosition() > 0){
                     aPlayer.setPaused(true);
-                    aPlayer.setPosition(aStart);
-                    ofLog(OF_LOG_NOTICE, "the position is " + ofToString(aPlayer.getPosition()) + "it should be " + ofToString(aStart));
+                    aPlayer.setPosition(beginPoint);
+                    ofLog(OF_LOG_NOTICE, "the position is " + ofToString(aPlayer.getPosition()) + "it should be " + ofToString(beginPoint));
+                    //aPlayer.setSpeed(aSpeed);
                     updateStatus("a", "LOADED");
                     }
                 }
             else{
+                //aPlayer.setSpeed(aSpeed);
                 updateStatus("a", "LOADED");
                 }
             }
         }
     else if(aStatus == "PLAYING"){
-        if(aPlayer.getPosition() > aEnd || aPlayer.getCurrentFrame() > aPlayer.getTotalNumFrames() - 5){
+        //get end point based on direction
+        if(aPlayer.getSpeed() != aSpeed ){aPlayer.setSpeed(aSpeed);}
+        //ofLog(OF_LOG_NOTICE, "the player speed is " + ofToString(aPlayer.getSpeed()) + "but it should be " + ofToString(aSpeed));     
+        bool isAtEndPoint;
+        if(aSpeed >= 0){
+            isAtEndPoint = aPlayer.getPosition() > aEnd || aPlayer.getCurrentFrame() > aPlayer.getTotalNumFrames() - 5;
+            }
+        else{
+            isAtEndPoint = aPlayer.getPosition() < aStart || aPlayer.getCurrentFrame() < 5;
+            }
+        if(isAtEndPoint){
             aPlayer.setPaused(true);
             updateStatus("a", "FINISHED");
             }
@@ -319,23 +385,40 @@ void ofApp::checkPlayerStatuses(){
     //b player
     if( bStatus == "LOADING"){
         if(bPlayer.isLoaded()){
-            if(bStart > 0){
+    //get begin point based on direction
+            int beginPoint = bStart;
+            if(bSpeed < 0 ){
+                beginPoint = bEnd;
+                }
+            if(beginPoint > 0){
                 bPlayer.setPaused(false);
                 ofLog(OF_LOG_NOTICE, "the playing position is " + ofToString(bPlayer.getPosition()));
                 if(bPlayer.getPosition() > 0){
                     bPlayer.setPaused(true);
-                    bPlayer.setPosition(bStart);
-                    ofLog(OF_LOG_NOTICE, "the position is " + ofToString(bPlayer.getPosition()) + "it should be " + ofToString(bStart));
+                    bPlayer.setPosition(beginPoint);
+                    ofLog(OF_LOG_NOTICE, "the position is " + ofToString(bPlayer.getPosition()) + "it should be " + ofToString(beginPoint));
+                    //bPlayer.setSpeed(bSpeed);
                     updateStatus("b", "LOADED");
                     }
                 }
             else{
+                //bPlayer.setSpeed(bSpeed);
                 updateStatus("b", "LOADED");
                 }
             }
         }
     else if(bStatus == "PLAYING"){
-        if(bPlayer.getPosition() > bEnd || bPlayer.getCurrentFrame() > bPlayer.getTotalNumFrames() - 5){
+        //get end point based on direction
+        bool isAtEndPoint;
+        if(bPlayer.getSpeed() != bSpeed ){bPlayer.setSpeed(bSpeed);}
+        //ofLog(OF_LOG_NOTICE, "the player speed is " + ofToString(bPlayer.getSpeed()) + "but it should be " + ofToString(bSpeed));        
+        if(bSpeed >= 0){
+            isAtEndPoint = bPlayer.getPosition() > bEnd || bPlayer.getCurrentFrame() > bPlayer.getTotalNumFrames() - 5;
+            }
+        else{
+            isAtEndPoint = bPlayer.getPosition() < bStart || bPlayer.getCurrentFrame() < 5;
+            }
+        if(isAtEndPoint){
             bPlayer.setPaused(true);
             //bAlpha = 0;
             updateStatus("b", "FINISHED");
@@ -344,55 +427,71 @@ void ofApp::checkPlayerStatuses(){
     //c player
     if( cStatus == "LOADING"){
         if(cPlayer.isLoaded()){
-            if(cStart > 0){
+            int beginPoint = cStart;
+            if(cSpeed < 0 ){
+                beginPoint = cEnd;
+                }
+            if(beginPoint > 0){
                 cPlayer.setPaused(false);
                 ofLog(OF_LOG_NOTICE, "the playing position is " + ofToString(cPlayer.getPosition()));
                 if(cPlayer.getPosition() > 0){
                     cPlayer.setPaused(true);
-                    cPlayer.setPosition(cStart);
-                    ofLog(OF_LOG_NOTICE, "the position is " + ofToString(cPlayer.getPosition()) + "it should be " + ofToString(cStart));
+                    cPlayer.setPosition(beginPoint);
+                    ofLog(OF_LOG_NOTICE, "the position is " + ofToString(cPlayer.getPosition()) + "it should be " + ofToString(beginPoint));
+                    //cPlayer.setSpeed(cSpeed);
                     updateStatus("c", "LOADED");
                     }
                 }
             else{
+                //cPlayer.setSpeed(cSpeed);
                 updateStatus("c", "LOADED");
                 }
             }
         }
     else if(cStatus == "PLAYING"){
-        if(cPlayer.getPosition() > cEnd || cPlayer.getCurrentFrame() > cPlayer.getTotalNumFrames() - 5){
+        //get end point based on direction
+        if(cPlayer.getSpeed() != cSpeed ){cPlayer.setSpeed(cSpeed);}
+        //ofLog(OF_LOG_NOTICE, "the player speed is " + ofToString(cPlayer.getSpeed()) + "but it should be " + ofToString(cSpeed));     
+        bool isAtEndPoint;
+        if(cSpeed >= 0){
+            isAtEndPoint = cPlayer.getPosition() > cEnd || cPlayer.getCurrentFrame() > cPlayer.getTotalNumFrames() - 5;
+            }
+        else{
+            isAtEndPoint = cPlayer.getPosition() < cStart || cPlayer.getCurrentFrame() < 5;
+            }
+        if(isAtEndPoint){
             cPlayer.setPaused(true);
             //cAlpha = 0;
             updateStatus("c", "FINISHED");
             }
         }
             
-}
+}*/
 
 void ofApp::updateStatus(string playerName, string status){
     if(playerName == "a"){
-        aStatus = status;
+        aPlayer.status = status;
         sendStringMessage("/player/a/status", status);
     }
     else if(playerName == "b"){
-        bStatus = status;
+        bPlayer.status = status;
         sendStringMessage("/player/b/status", status);
     }
     else if(playerName == "c"){
-        cStatus = status;
+        cPlayer.status = status;
         sendStringMessage("/player/c/status", status);
     }
 }
 
 void ofApp::checkPlayerPositions(){
     if((int)ofGetElapsedTimef() > lastTime ){
-        if(aStatus == "PLAYING"){
+        if(aPlayer.status == "PLAYING"){
             sendFloatMessage("/player/a/position", aPlayer.getPosition());
         }
-        if(bStatus == "PLAYING"){
+        if(bPlayer.status == "PLAYING"){
             sendFloatMessage("/player/b/position", bPlayer.getPosition());
         }
-        if(cStatus == "PLAYING"){
+        if(cPlayer.status == "PLAYING"){
             sendFloatMessage("/player/c/position", cPlayer.getPosition());
         }
         lastTime = (int)ofGetElapsedTimef();
