@@ -21,7 +21,7 @@ class ofApp : public ofBaseApp{
         void sendFloatMessage(string address, float value);
         void sendStringMessage(string address, string value);
         void drawPlayerIfPlayingOrPaused(videoPlayer player);
-        void updateStatus(string playerName, string status);
+        void updateStatus(videoPlayer& player, string statusValue);
         void setupCapture();
 
     ofxOscReceiver receiver;
@@ -39,7 +39,10 @@ class ofApp : public ofBaseApp{
 
     ofxRPiCameraVideoGrabber videoGrabber;
     OMXCameraSettings omxCameraSettings;
+    bool hasCapture;
     bool capturePreview;
+    bool captureRecord;
+
 
     ofShader 		shader;
     bool useShader;
