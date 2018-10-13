@@ -290,14 +290,19 @@ void ofApp::setupCapture(){
     //omxCameraSettings.width = 640;
     //omxCameraSettings.height = 480;
     omxCameraSettings.framerate = 30;
+    //omxCameraSettings.sensorMode = 5;
     //omxCameraSettings.enableTexture = true;
     omxCameraSettings.recordingFilePath = "/home/pi/Videos/raw.h264";
     videoGrabber.setup(omxCameraSettings);
-    //videoGrabber.setWhiteBalance("off");
-    //videoGrabber.setShutterSpeed(1000);
+    videoGrabber.setWhiteBalance("off");
+    videoGrabber.setWhiteBalanceGains(65536,65536);
+    videoGrabber.setShutterSpeed(1000);
     //videoGrabber.saveStateToFile();
     videoGrabber.setAutoShutter(false);
-    //videoGrabber.setExposurePreset("off");
+    videoGrabber.setExposurePreset("off");
+    //videoGrabber.getSensorMode();
+    //videoGrabber.getSensorModeAgain();
+
 
     ofLog(OF_LOG_NOTICE, "the videoGrabber state is " + ofToString(videoGrabber.isReady()) );
     if(videoGrabber.isReady()){

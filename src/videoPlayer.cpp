@@ -41,10 +41,14 @@ bool videoPlayer::ifLoading(){
             //if(speed < 0 ){
             //    beginPoint = end;
                // }
+            //firstFrame();
             setPaused(false);
             ofLog(OF_LOG_NOTICE, "the playing position is " + ofToString(getPosition()));
-            if(getPosition() > 0){
+            
+            if(getPosition() > 0  && getPosition() < 100){
                 setPaused(true);
+                //ofLog(OF_LOG_NOTICE, "the playing frame is " + ofToString(getCurrentFrame()));
+
                 if(start != 0){setPosition(start);}
                 ofLog(OF_LOG_NOTICE, "the position is " + ofToString(getPosition()) + "it should be " + ofToString(start));
                 //aPlayer.setSpeed(aSpeed);
