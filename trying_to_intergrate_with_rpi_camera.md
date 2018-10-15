@@ -30,6 +30,12 @@ at this stage the options i can see are:
 - edit the ofxRPiCameraVideoGrabber addon to include control over these parameters
 - somehow figure out another way to get texture objects from the camera into openframeworks (this seems even futher beyond me !)
 
+## update
+
+with some pointers from Jason the auther of rpiGrabber, i managed to edit the addon to include setting awbg ! still havnt figured out sensormode , and this ate a lot of my time but i plan on coming back to this at some point.
+
+also for composite out the of capture looks ok. think hdmi will b glitchy.
+
 
 [capture device]: https://lintestsystems.com/products/picapture-sd1
 [picamera]: https://picamera.readthedocs.io/en/release-1.13/
