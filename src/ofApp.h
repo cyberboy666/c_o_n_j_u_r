@@ -22,7 +22,7 @@ class ofApp : public ofBaseApp{
         void sendStringMessage(string address, string value);
         void drawPlayerIfPlayingOrPaused(videoPlayer player);
         void updateStatus(videoPlayer& player, string statusValue);
-        void setupCapture();
+        void setupCapture(string captureType);
 
     ofxOscReceiver receiver;
     ofxOscSender sender;

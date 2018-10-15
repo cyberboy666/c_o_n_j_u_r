@@ -237,8 +237,8 @@ void ofApp::receiveMessages(){
             useShader = false;
         }
         else if(m.getAddress() == "/capture/setup"){
-            ofLog(OF_LOG_NOTICE, "setting up the capture" );
-            setupCapture();
+            ofLog(OF_LOG_NOTICE, "setting up the capture type" + m.getArgAsString(0) );
+            setupCapture(m.getArgAsString(0));
 
         }
         else if(m.getAddress() == "/capture/preview/start"){
@@ -284,22 +284,25 @@ void ofApp::receiveMessages(){
     }
 }
 
-void ofApp::setupCapture(){
+void ofApp::setupCapture(string captureType){
     //omxCameraSettings.width = ofGetWidth();
     //omxCameraSettings.height = ofGetHeight();
     //omxCameraSettings.width = 640;
     //omxCameraSettings.height = 480;
-    omxCameraSettings.framerate = 30;
+    //omxCameraSettings.framerate = 30;
     //omxCameraSettings.sensorMode = 5;
     //omxCameraSettings.enableTexture = true;
     omxCameraSettings.recordingFilePath = "/home/pi/Videos/raw.h264";
+
     videoGrabber.setup(omxCameraSettings);
-    videoGrabber.setWhiteBalance("off");
-    videoGrabber.setWhiteBalanceGains(65536,65536);
-    videoGrabber.setShutterSpeed(1000);
+    if(captureType == "piCaptureSd1"){
+        videoGrabber.setWhiteBalance("Off");
+        videoGrabber.setWhiteBalanceGains(1,1);
+        videoGrabber.setExposurePreset("off");
+    }
+    //videoGrabber.setShutterSpeed(1000);
     //videoGrabber.saveStateToFile();
-    videoGrabber.setAutoShutter(false);
-    videoGrabber.setExposurePreset("off");
+    //videoGrabber.setAutoShutter(false);
     //videoGrabber.getSensorMode();
     //videoGrabber.getSensorModeAgain();
 
