@@ -93,7 +93,7 @@ void ofApp::setFrameSizeFromFile(){
     bool isDevMode = xmlSettings.getValue("settings:isDevMode", true);
 
     if(isDevMode){
-        ofSetFullscreen(0);
+        //ofSetFullscreen(0);
         ofSetWindowShape(300,200);
         ofSetWindowPosition(50,500);
         fbo.allocate(ofGetWidth(), ofGetHeight());
@@ -243,6 +243,10 @@ void ofApp::receiveMessages(){
         }
         else if(m.getAddress() == "/capture/preview/start"){
             if(hasCapture){
+                if (!videoGrabber.isReady()){
+                    videoGrabber.setup(omxCameraSettings);
+                    videoGrabber.reset();
+                    }
                 ofLog(OF_LOG_NOTICE, "starting the capture" );
                 capturePreview = true;
             }
@@ -251,8 +255,10 @@ void ofApp::receiveMessages(){
             if(hasCapture){
             ofLog(OF_LOG_NOTICE, "stopping the capture" );
             capturePreview = false;
+            ofLog(OF_LOG_NOTICE, "is ready " +  ofToString((videoGrabber.isReady())));
                 if(!captureRecord){
-                    //videoGrabber.close();
+                    ofLog(OF_LOG_NOTICE, "closing the capture" );
+                    videoGrabber.close();
                 }
             }
         }
@@ -306,7 +312,7 @@ void ofApp::setupCapture(string captureType){
     //videoGrabber.getSensorMode();
     //videoGrabber.getSensorModeAgain();
 
-
+    videoGrabber.reset();
     ofLog(OF_LOG_NOTICE, "the videoGrabber state is " + ofToString(videoGrabber.isReady()) );
     if(videoGrabber.isReady()){
         hasCapture = true;
