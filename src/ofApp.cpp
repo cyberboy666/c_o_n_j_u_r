@@ -28,7 +28,7 @@ void ofApp::setup(){
     shaderParams[4] = { };
     paramNum = 0;
     
-    fbo.allocate(ofGetWidth(), ofGetHeight());
+    //fbo.allocate(ofGetWidth(), ofGetHeight());
         
     fbo.begin();
         ofClear(0, 0, 0, 0);
@@ -93,7 +93,7 @@ void ofApp::setFrameSizeFromFile(){
     bool isDevMode = xmlSettings.getValue("settings:isDevMode", true);
 
     if(isDevMode){
-        //ofSetFullscreen(0);
+        ofSetFullscreen(0);
         ofSetWindowShape(300,200);
         ofSetWindowPosition(50,500);
         fbo.allocate(ofGetWidth(), ofGetHeight());
@@ -279,8 +279,6 @@ void ofApp::receiveMessages(){
         }
         else if(m.getAddress() == "/dev_mode"){
             ofLog(OF_LOG_NOTICE, "switching the resolution" );
-            xmlSettings.setValue("settings:isDevMode", m.getArgAsBool(0));
-            xmlSettings.saveFile("settings.xml");
             setFrameSizeFromFile();
         }
         else if(m.getAddress() == "/exit"){
