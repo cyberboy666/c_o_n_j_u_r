@@ -1,3 +1,3 @@
 ofxOsc
-ofxRPiCameraVideoGrabber
+ofxOMXCamera
 ofxXmlSettings

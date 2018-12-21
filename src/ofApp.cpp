@@ -101,6 +101,7 @@ void ofApp::setFrameSizeFromFile(){
     else{
         ofSetFullscreen(1);
         fbo.allocate(ofGetScreenWidth(), ofGetScreenHeight());
+        //fbo.allocate(640, 480);
         }
 }
 
@@ -242,17 +243,20 @@ void ofApp::receiveMessages(){
 
         }
         else if(m.getAddress() == "/capture/preview/start"){
-            if(hasCapture){
-                if (!videoGrabber.isReady()){
-                    videoGrabber.setup(omxCameraSettings);
-                    videoGrabber.reset();
-                    }
-                ofLog(OF_LOG_NOTICE, "starting the capture" );
-                capturePreview = true;
-            }
+
+            ofLog(OF_LOG_NOTICE, "the videoGrabber state is " + ofToString(videoGrabber.isReady()) );
+            if (!videoGrabber.isReady()){
+                videoGrabber.setup(omxCameraSettings);
+                //videoGrabber.reset();
+                }
+            ofLog(OF_LOG_NOTICE, "starting the capture" );
+            //videoGrabber.printSensorModesInfo();
+            //videoGrabber.PrintSensorModes(videoGrabber.engine.camera);
+            capturePreview = true;
         }
+
         else if(m.getAddress() == "/capture/preview/stop"){
-            if(hasCapture){
+
             ofLog(OF_LOG_NOTICE, "stopping the capture" );
             capturePreview = false;
             ofLog(OF_LOG_NOTICE, "is ready " +  ofToString((videoGrabber.isReady())));
@@ -261,22 +265,22 @@ void ofApp::receiveMessages(){
                     videoGrabber.close();
                 }
             }
-        }
+
         else if(m.getAddress() == "/capture/record/start"){
-            if(hasCapture){
+
             ofLog(OF_LOG_NOTICE, "starting record" );
                 videoGrabber.startRecording();
             }
-        }
+
         else if(m.getAddress() == "/capture/record/stop"){
-            if(hasCapture){
+
             ofLog(OF_LOG_NOTICE, "stopping record" );
                 videoGrabber.stopRecording();
                 if(!capturePreview){
                     //videoGrabber.close();
                 }
             }
-        }
+
         else if(m.getAddress() == "/dev_mode"){
             ofLog(OF_LOG_NOTICE, "switching the resolution" );
             setFrameSizeFromFile();
@@ -289,33 +293,21 @@ void ofApp::receiveMessages(){
 }
 
 void ofApp::setupCapture(string captureType){
-    //omxCameraSettings.width = ofGetWidth();
-    //omxCameraSettings.height = ofGetHeight();
-    //omxCameraSettings.width = 640;
-    //omxCameraSettings.height = 480;
-    //omxCameraSettings.framerate = 30;
-    //omxCameraSettings.sensorMode = 5;
-    //omxCameraSettings.enableTexture = true;
+
+   omxCameraSettings.sensorWidth = fbo.getWidth();
+    omxCameraSettings.sensorHeight = fbo.getHeight();
+	//omxCameraSettings.framerate = 25;
+	omxCameraSettings.enableTexture = true;
+
     omxCameraSettings.recordingFilePath = "/home/pi/Videos/raw.h264";
 
-    videoGrabber.setup(omxCameraSettings);
     if(captureType == "piCaptureSd1"){
-        videoGrabber.setWhiteBalance("Off");
-        videoGrabber.setWhiteBalanceGains(1,1);
-        videoGrabber.setExposurePreset("off");
-    }
-    //videoGrabber.setShutterSpeed(1000);
-    //videoGrabber.saveStateToFile();
-    //videoGrabber.setAutoShutter(false);
-    //videoGrabber.getSensorMode();
-    //videoGrabber.getSensorModeAgain();
-
-    videoGrabber.reset();
-    ofLog(OF_LOG_NOTICE, "the videoGrabber state is " + ofToString(videoGrabber.isReady()) );
-    if(videoGrabber.isReady()){
-        hasCapture = true;
+        omxCameraSettings.sensorMode = 7;
+        omxCameraSettings.whiteBalance ="Off";
+        omxCameraSettings.exposurePreset ="Off";
+        omxCameraSettings.whiteBalanceGainR = 1.0;
+        omxCameraSettings.whiteBalanceGainB = 1.0;
         }
-    sendFloatMessage("/capture/is_setup", hasCapture );
 
     }
 

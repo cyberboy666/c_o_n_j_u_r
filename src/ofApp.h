@@ -3,7 +3,8 @@
 #include "ofMain.h"
 #include "ofxOsc.h"
 #include "ofAppEGLWindow.h"
-#include "ofxRPiCameraVideoGrabber.h"
+#include "ofxOMXVideoGrabber.h"
+#include "OMX_Maps.h"
 #include "ofxXmlSettings.h"
 #include "videoPlayer.h"
 
@@ -37,8 +38,8 @@ class ofApp : public ofBaseApp{
     videoPlayer 		cPlayer;
 
 
-    ofxRPiCameraVideoGrabber videoGrabber;
-    OMXCameraSettings omxCameraSettings;
+    ofxOMXVideoGrabber videoGrabber;
+    ofxOMXCameraSettings omxCameraSettings;
     bool hasCapture;
     bool capturePreview;
     bool captureRecord;
