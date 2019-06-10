@@ -27,12 +27,16 @@ void ofApp::setup(){
     processShader = false;
     shaderParams[4] = { };
     paramNum = 0;
+    shaderInputCount = 0;
     
     //fbo.allocate(ofGetWidth(), ofGetHeight());
         
     fbo.begin();
         ofClear(0, 0, 0, 0);
     fbo.end();
+    fboTwo.begin();
+        ofClear(0, 0, 0, 0);
+    fboTwo.end();
 
 }
 
@@ -43,44 +47,56 @@ void ofApp::update(){
     checkPlayerStatuses();
     checkPlayerPositions();
 
-    fbo.begin();
-        //ofClear(0, 0, 0, 0);
-        if (capturePreview){ // && videoGrabber.isFrameNew()){
-            //videoGrabber.draw(0,0,640,480);
-            videoGrabber.draw();
-            }
-        else{
-            drawPlayerIfPlayingOrPaused(aPlayer);
-            drawPlayerIfPlayingOrPaused(bPlayer);
-            drawPlayerIfPlayingOrPaused(cPlayer);
-            }
-    fbo.end();  
+    aPlayer.update();
+    bPlayer.update();
+    cPlayer.update();
+
     }
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-    if(useShader == true){
-        shader.begin();
-        shader.setUniform1f("u_time", ofGetElapsedTimef());
-        shader.setUniform2f("u_resolution", ofGetWidth(), ofGetHeight());
-        for( int i = 0; i <  paramNum; i = i + 1){
-            shader.setUniform1f("u_x" + ofToString(i), shaderParams[i]);
-            }
 
-        if(true){
-            shader.setUniformTexture("u_tex0", fbo.getTexture(), fbo.getTexture().getTextureData().textureID);
-        //, aPlayer.getTexture().getTextureData().textureID);
-            }
-
-        fbo.draw(0, 0);
-        shader.end();
-        }
+    if(useShader){
+         fbo.begin();
+            shader.begin();
+                shader.setUniform1f("u_time", ofGetElapsedTimef());
+                shader.setUniform2f("u_resolution", ofGetWidth(), ofGetHeight());
+                for( int i = 0; i <  paramNum; i = i + 1){
+                    shader.setUniform1f("u_x" + ofToString(i), shaderParams[i]);
+                    }
+                drawCaptureAndPlayers();
+            shader.end();
+         fbo.end();
+    }
     else{
-        fbo.draw(0,0);
-        }
+
+         fbo.begin();
+            drawCaptureAndPlayers();
+         fbo.end();
+    }
+
+    fbo.draw(0,0,ofGetWidth(), ofGetHeight());
     }
 
 //--------------------------------------------------------------
+
+void ofApp::drawCaptureAndPlayers(){
+    shaderInputCount = 0;
+    if (capturePreview){ // && videoGrabber.isFrameNew()){
+        //videoGrabber.draw(0,0,640,480);
+        videoGrabber.draw();
+        if(useShader){
+            shader.setUniformTexture("u_tex" + ofToString(shaderInputCount), videoGrabber.getTextureReference(), shaderInputCount + 1);
+            shaderInputCount++;
+        }
+    }
+ 
+    drawPlayerIfPlayingOrPaused(cPlayer);
+    drawPlayerIfPlayingOrPaused(bPlayer);
+    drawPlayerIfPlayingOrPaused(aPlayer);
+
+}
+
 void ofApp::keyPressed(int key){
 if (key == 'q'){
         ofExit();
@@ -97,10 +113,12 @@ void ofApp::setFrameSizeFromFile(){
         ofSetWindowShape(300,200);
         ofSetWindowPosition(50,500);
         fbo.allocate(ofGetWidth(), ofGetHeight());
+        fboTwo.allocate(ofGetWidth(), ofGetHeight());
         }
     else{
         ofSetFullscreen(1);
         fbo.allocate(ofGetScreenWidth(), ofGetScreenHeight());
+        fboTwo.allocate(ofGetScreenWidth(), ofGetScreenHeight());
         //fbo.allocate(640, 480);
         }
 }
@@ -108,13 +126,12 @@ void ofApp::setFrameSizeFromFile(){
 void ofApp::drawPlayerIfPlayingOrPaused(videoPlayer player){
   
     if ( player.status == "PLAYING" || player.status == "PAUSED" ){
-        
-        player.update();
-        ofEnableAlphaBlending();
-        ofSetColor(255, 255, 255, player.alpha);
         player.draw(0, 0, ofGetWidth(), ofGetHeight());
-        ofDisableAlphaBlending();
+        if(useShader && shaderInputCount < 2){
+            shader.setUniformTexture("u_tex" + ofToString(shaderInputCount), player.getTexture(), shaderInputCount + 1);
+            shaderInputCount++;
         }
+    }
 }
 
 void ofApp::receiveMessages(){

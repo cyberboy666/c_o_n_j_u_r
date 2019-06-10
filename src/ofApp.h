@@ -21,6 +21,7 @@ class ofApp : public ofBaseApp{
         void checkPlayerPositions();
         void sendFloatMessage(string address, float value);
         void sendStringMessage(string address, string value);
+        void drawCaptureAndPlayers();
         void drawPlayerIfPlayingOrPaused(videoPlayer player);
         void updateStatus(videoPlayer& player, string statusValue);
         void setupCapture(string captureType);
@@ -32,6 +33,7 @@ class ofApp : public ofBaseApp{
     ofxXmlSettings xmlSettings;
 
     ofFbo fbo;
+    ofFbo fboTwo;
 
     videoPlayer 		aPlayer;
     videoPlayer 		bPlayer;
@@ -50,7 +52,7 @@ class ofApp : public ofBaseApp{
     bool processShader;
     float shaderParams[8];
     int paramNum;
-
+    int shaderInputCount;
     int lastTime;
 
 };
