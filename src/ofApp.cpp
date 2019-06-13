@@ -15,6 +15,7 @@ void ofApp::setup(){
     sender.setup("localhost", 9000);
 
     hasCapture = false;
+    captureType = "";
     capturePreview = false;
     captureRecord = false;
 
@@ -50,6 +51,7 @@ void ofApp::update(){
     aPlayer.update();
     bPlayer.update();
     cPlayer.update();
+    videoGrabber.update();
 
     }
 
@@ -84,9 +86,9 @@ void ofApp::drawCaptureAndPlayers(){
     shaderInputCount = 0;
     if (capturePreview){ // && videoGrabber.isFrameNew()){
         //videoGrabber.draw(0,0,640,480);
-        videoGrabber.draw();
+        videoGrabber.draw(0,0,ofGetWidth(), ofGetHeight());
         if(useShader){
-            shader.setUniformTexture("u_tex" + ofToString(shaderInputCount), videoGrabber.getTextureReference(), shaderInputCount + 1);
+            shader.setUniformTexture("u_tex" + ofToString(shaderInputCount), videoGrabber.getTexture(), shaderInputCount + 1); //videoGrabber.getTextureReference()
             shaderInputCount++;
         }
     }
@@ -256,14 +258,14 @@ void ofApp::receiveMessages(){
         }
         else if(m.getAddress() == "/capture/setup"){
             ofLog(OF_LOG_NOTICE, "setting up the capture type" + m.getArgAsString(0) );
-            setupCapture(m.getArgAsString(0));
+            captureType = m.getArgAsString(0);
 
         }
         else if(m.getAddress() == "/capture/preview/start"){
 
             ofLog(OF_LOG_NOTICE, "the videoGrabber state is " + ofToString(videoGrabber.isReady()) );
             if (!videoGrabber.isReady()){
-                videoGrabber.setup(omxCameraSettings);
+                videoGrabber.setup(captureType);
                 //videoGrabber.reset();
                 }
             ofLog(OF_LOG_NOTICE, "starting the capture" );
@@ -309,24 +311,7 @@ void ofApp::receiveMessages(){
     }
 }
 
-void ofApp::setupCapture(string captureType){
 
-   omxCameraSettings.sensorWidth = fbo.getWidth();
-    omxCameraSettings.sensorHeight = fbo.getHeight();
-	//omxCameraSettings.framerate = 25;
-	omxCameraSettings.enableTexture = true;
-
-    omxCameraSettings.recordingFilePath = "/home/pi/Videos/raw.h264";
-
-    if(captureType == "piCaptureSd1"){
-        omxCameraSettings.sensorMode = 7;
-        omxCameraSettings.whiteBalance ="Off";
-        omxCameraSettings.exposurePreset ="Off";
-        omxCameraSettings.whiteBalanceGainR = 1.0;
-        omxCameraSettings.whiteBalanceGainB = 1.0;
-        }
-
-    }
 
 void ofApp::checkPlayerStatuses(){
     bool aIsLoaded = aPlayer.ifLoading();

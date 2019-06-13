@@ -7,6 +7,7 @@
 #include "OMX_Maps.h"
 #include "ofxXmlSettings.h"
 #include "videoPlayer.h"
+#include "captur.h"
 
 class ofApp : public ofBaseApp{
 	public:
@@ -40,9 +41,9 @@ class ofApp : public ofBaseApp{
     videoPlayer 		cPlayer;
 
 
-    ofxOMXVideoGrabber videoGrabber;
-    ofxOMXCameraSettings omxCameraSettings;
+    captur videoGrabber;
     bool hasCapture;
+    string captureType;
     bool capturePreview;
     bool captureRecord;
 
