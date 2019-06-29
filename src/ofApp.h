@@ -8,6 +8,8 @@
 #include "ofxXmlSettings.h"
 #include "videoPlayer.h"
 #include "captur.h"
+#include "detour.h"
+#include "conjur.h"
 
 class ofApp : public ofBaseApp{
 	public:
@@ -55,5 +57,19 @@ class ofApp : public ofBaseApp{
     int paramNum;
     int shaderInputCount;
     int lastTime;
+// === detour demo
+    void detourUpdate();
+    bool isDetour;
+    detour thisDetour;
+    conjur mixConjur;
+    
+    ofPixels in_frame;
+    ofPixels detour_frame;
+    ofPixels out_frame;
+    ofTexture in_texture;
+    ofTexture detour_texture;
+    ofFbo out_fbo;
+    ofFbo mix_fbo;
+
 
 };

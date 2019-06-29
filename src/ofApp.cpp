@@ -29,16 +29,26 @@ void ofApp::setup(){
     shaderParams[4] = { };
     paramNum = 0;
     shaderInputCount = 0;
+    // detour demo
+    isDetour = false;
+    thisDetour.setup();
+
+    mixConjur.setup();
+    mixConjur.loadShaderFiles("/home/pi/Shaders/default.vert", "/home/pi/r_e_c_u_r/shader_experiments/Shaders/2-input/wipe.frag");
+    mixConjur.shaderParams[0] = 0.5;
+    //effectConjur.setup();
+    //effectConjur.loadShader(shaderPath + "effectShader");
+    // mixConjur.isActive = false;
+    in_texture.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
+    detour_texture.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
     
-    //fbo.allocate(ofGetWidth(), ofGetHeight());
+    out_fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
+    mix_fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
+    fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
         
     fbo.begin();
         ofClear(0, 0, 0, 0);
     fbo.end();
-    fboTwo.begin();
-        ofClear(0, 0, 0, 0);
-    fboTwo.end();
-
 }
 
 //--------------------------------------------------------------
@@ -76,9 +86,36 @@ void ofApp::draw(){
             drawCaptureAndPlayers();
          fbo.end();
     }
-
+    if(!isDetour){
     fbo.draw(0,0,ofGetWidth(), ofGetHeight());
     }
+    else{
+    detourUpdate();
+    out_fbo.draw(0,0,ofGetWidth(), ofGetHeight());
+    //detour_texture.draw(0,0,ofGetWidth(), ofGetHeight());
+    }
+}
+
+void ofApp::detourUpdate(){
+    fbo.readToPixels(in_frame);
+    in_frame.resize(ofGetWidth(), ofGetHeight());
+    detour_frame = thisDetour.getFrame();
+
+    in_texture.loadData(in_frame.getData(), in_frame.getWidth(), in_frame.getHeight(), GL_RGB);
+    detour_texture.loadData(detour_frame.getData(), detour_frame.getWidth(), detour_frame.getHeight(), GL_RGB);
+
+    vector<ofTexture> mixInput = {in_texture, detour_texture};
+    out_fbo = mixConjur.apply(mixInput);
+    
+    //ofTexture mix_texture = mix_fbo.getTexture();
+    //vector<ofTexture> effectInput = {mix_texture};
+    //out_fbo = effectConjur.apply(effectInput);
+
+    if(thisDetour.is_recording){
+        out_fbo.readToPixels(out_frame);
+        thisDetour.addFrame(out_frame); 
+        }
+}
 
 //--------------------------------------------------------------
 
@@ -86,7 +123,7 @@ void ofApp::drawCaptureAndPlayers(){
     shaderInputCount = 0;
     if (capturePreview){ // && videoGrabber.isFrameNew()){
         //videoGrabber.draw(0,0,640,480);
-        videoGrabber.draw(0,0,ofGetWidth(), ofGetHeight());
+        //videoGrabber.draw(0,0,ofGetWidth(), ofGetHeight());
         if(useShader){
             shader.setUniformTexture("u_tex" + ofToString(shaderInputCount), videoGrabber.getTexture(), shaderInputCount + 1); //videoGrabber.getTextureReference()
             shaderInputCount++;
@@ -96,7 +133,9 @@ void ofApp::drawCaptureAndPlayers(){
     drawPlayerIfPlayingOrPaused(cPlayer);
     drawPlayerIfPlayingOrPaused(bPlayer);
     drawPlayerIfPlayingOrPaused(aPlayer);
-
+if (capturePreview){
+        videoGrabber.draw(0,0,ofGetWidth(), ofGetHeight());
+    }
 }
 
 void ofApp::keyPressed(int key){
@@ -115,12 +154,12 @@ void ofApp::setFrameSizeFromFile(){
         ofSetWindowShape(300,200);
         ofSetWindowPosition(50,500);
         fbo.allocate(ofGetWidth(), ofGetHeight());
-        fboTwo.allocate(ofGetWidth(), ofGetHeight());
+        
         }
     else{
         ofSetFullscreen(1);
         fbo.allocate(ofGetScreenWidth(), ofGetScreenHeight());
-        fboTwo.allocate(ofGetScreenWidth(), ofGetScreenHeight());
+        
         //fbo.allocate(640, 480);
         }
 }
@@ -286,17 +325,34 @@ void ofApp::receiveMessages(){
             }
 
         else if(m.getAddress() == "/capture/record/start"){
-
+            if (!videoGrabber.isReady()){
+                videoGrabber.setup(captureType);
+                //videoGrabber.reset();
+                }
+            ofLog(OF_LOG_NOTICE, "starting the capture" );
             ofLog(OF_LOG_NOTICE, "starting record" );
                 videoGrabber.startRecording();
+            }
+        else if(m.getAddress() == "/detour/start"){
+                ofLog() << "detour on !";
+                isDetour = true;
+            }
+        else if(m.getAddress() == "/detour/end"){
+                ofLog() << "detour off !";
+                isDetour = false;
             }
 
         else if(m.getAddress() == "/capture/record/stop"){
 
             ofLog(OF_LOG_NOTICE, "stopping record" );
                 videoGrabber.stopRecording();
+            ofLog(OF_LOG_NOTICE, "stopped record" );
                 if(!capturePreview){
-                    //videoGrabber.close();
+                    ofLog() << "videoGrabber.isRecording() " << videoGrabber.isRecording();
+                    while(videoGrabber.isRecording()){
+                        //wait for video to stop before closing;
+                    }
+                    videoGrabber.close();
                 }
             }
 
