@@ -53,9 +53,6 @@ class ofApp : public ofBaseApp{
     ofShader 		shader;
     bool useShader;
     bool processShader;
-    float shaderParams[8];
-    int paramNum;
-    int shaderInputCount;
     int lastTime;
 // === detour demo
     void sendDetourMessage(int position, int start, int end, int size, float speed, float mix, bool memory_full );
@@ -63,7 +60,8 @@ class ofApp : public ofBaseApp{
     bool isDetour;
     detour thisDetour;
     conjur mixConjur;
-    
+    conjur effectConjur;
+    vector<ofTexture> effectInput;
     ofPixels in_frame;
     ofPixels detour_frame;
     ofPixels out_frame;

@@ -26,9 +26,6 @@ void ofApp::setup(){
     lastTime = 0;
     useShader = false;
     processShader = false;
-    shaderParams[4] = { };
-    paramNum = 0;
-    shaderInputCount = 0;
     // detour demo
     isDetour = false;
     thisDetour.setup();
@@ -36,9 +33,9 @@ void ofApp::setup(){
     mixConjur.setup();
     mixConjur.loadShaderFiles("/home/pi/Shaders/default.vert", "/home/pi/r_e_c_u_r/shader_experiments/Shaders/2-input/wipe.frag");
     mixConjur.shaderParams[0] = 0.5;
-    //effectConjur.setup();
-    //effectConjur.loadShader(shaderPath + "effectShader");
-    // mixConjur.isActive = false;
+    effectConjur.setup();
+    effectInput = {};
+    
     in_texture.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
     detour_texture.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
     
@@ -53,7 +50,7 @@ void ofApp::setup(){
 
 //--------------------------------------------------------------
 void ofApp::update(){
-
+    
     receiveMessages();
     checkPlayerStatuses();
     checkPlayerPositions();
@@ -68,28 +65,23 @@ void ofApp::update(){
 //--------------------------------------------------------------
 void ofApp::draw(){
 
-    if(useShader){
-         fbo.begin();
-            shader.begin();
-                shader.setUniform1f("u_time", ofGetElapsedTimef());
-                shader.setUniform2f("u_resolution", ofGetWidth(), ofGetHeight());
-                for( int i = 0; i <  paramNum; i = i + 1){
-                    shader.setUniform1f("u_x" + ofToString(i), shaderParams[i]);
-                    }
-                drawCaptureAndPlayers();
-            shader.end();
-         fbo.end();
-    }
-    else{
-
-         fbo.begin();
-            drawCaptureAndPlayers();
-         fbo.end();
-    }
     if(!isDetour){
+        if(useShader){
+            effectInput = {};
+            drawCaptureAndPlayers();
+            fbo = effectConjur.apply(effectInput);
+             }
+        else{
+             fbo.begin();
+                drawCaptureAndPlayers();
+             fbo.end();
+        }
     fbo.draw(0,0,ofGetWidth(), ofGetHeight());
     }
     else{
+        fbo.begin();
+            drawCaptureAndPlayers();
+        fbo.end();
     detourUpdate();
     out_fbo.draw(0,0,ofGetWidth(), ofGetHeight());
     //detour_texture.draw(0,0,ofGetWidth(), ofGetHeight());
@@ -105,12 +97,13 @@ void ofApp::detourUpdate(){
     detour_texture.loadData(detour_frame.getData(), detour_frame.getWidth(), detour_frame.getHeight(), GL_RGB);
 
     vector<ofTexture> mixInput = {in_texture, detour_texture};
-    out_fbo = mixConjur.apply(mixInput);
-    
-    //ofTexture mix_texture = mix_fbo.getTexture();
-    //vector<ofTexture> effectInput = {mix_texture};
-    //out_fbo = effectConjur.apply(effectInput);
-
+    mix_fbo = mixConjur.apply(mixInput);
+    if(useShader){
+        ofTexture mix_texture = mix_fbo.getTexture();
+        vector<ofTexture> effectInput = {mix_texture};
+        out_fbo = effectConjur.apply(effectInput);
+    }
+    else{out_fbo = mix_fbo;}
     if(thisDetour.is_recording){
         out_fbo.readToPixels(out_frame);
         thisDetour.checkMemory();
@@ -121,13 +114,10 @@ void ofApp::detourUpdate(){
 //--------------------------------------------------------------
 
 void ofApp::drawCaptureAndPlayers(){
-    shaderInputCount = 0;
     if (capturePreview){ // && videoGrabber.isFrameNew()){
-        //videoGrabber.draw(0,0,640,480);
-        //videoGrabber.draw(0,0,ofGetWidth(), ofGetHeight());
-        if(useShader){
-            shader.setUniformTexture("u_tex" + ofToString(shaderInputCount), videoGrabber.getTexture(), shaderInputCount + 1); //videoGrabber.getTextureReference()
-            shaderInputCount++;
+        if(useShader){ 
+            effectInput.push_back(videoGrabber.getTexture());
+            //ofLog() << "capture is texture " << effectInput.size(); 
         }
     }
  
@@ -154,12 +144,12 @@ void ofApp::setFrameSizeFromFile(){
         ofSetFullscreen(0);
         ofSetWindowShape(300,200);
         ofSetWindowPosition(50,500);
-        fbo.allocate(ofGetWidth(), ofGetHeight());
+        fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
         
         }
     else{
         ofSetFullscreen(1);
-        fbo.allocate(ofGetScreenWidth(), ofGetScreenHeight());
+        fbo.allocate(ofGetScreenWidth(), ofGetScreenHeight(), GL_RGB);
         
         //fbo.allocate(640, 480);
         }
@@ -169,10 +159,10 @@ void ofApp::drawPlayerIfPlayingOrPaused(videoPlayer player){
   
     if ( player.status == "PLAYING" || player.status == "PAUSED" ){
         player.draw(0, 0, ofGetWidth(), ofGetHeight());
-        if(useShader && shaderInputCount < 2){
-            shader.setUniformTexture("u_tex" + ofToString(shaderInputCount), player.getTexture(), shaderInputCount + 1);
-            shaderInputCount++;
-        }
+        if(useShader && effectInput.size() < 2){
+            effectInput.push_back(player.getTexture());
+            //ofLog() << "player " << player.name << " is texture " << effectInput.size();
+            }
     }
 }
 
@@ -281,14 +271,11 @@ void ofApp::receiveMessages(){
             sendFloatMessage("/player/c/position", cPlayer.getPosition());
         }
         else if(m.getAddress() == "/shader/load"){
-            shader.load("/home/pi/Shaders/default.vert",m.getArgAsString(0)); 
+            effectConjur.loadShaderFiles("/home/pi/Shaders/default.vert", m.getArgAsString(0));
             processShader = m.getArgAsBool(1);
-            paramNum = m.getArgAsInt(2);
-
-            //shaderParams = { };
-        }
+            }
         else if(m.getAddress() == "/shader/param"){
-            shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
+            effectConjur.shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
         }
         else if(m.getAddress() == "/shader/start"){
             useShader = true;
