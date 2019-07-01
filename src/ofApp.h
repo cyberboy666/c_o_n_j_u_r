@@ -58,6 +58,7 @@ class ofApp : public ofBaseApp{
     int shaderInputCount;
     int lastTime;
 // === detour demo
+    void sendDetourMessage(int position, int start, int end, int size, float speed, float mix, bool memory_full );
     void detourUpdate();
     bool isDetour;
     detour thisDetour;

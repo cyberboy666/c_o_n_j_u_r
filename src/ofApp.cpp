@@ -113,6 +113,7 @@ void ofApp::detourUpdate(){
 
     if(thisDetour.is_recording){
         out_fbo.readToPixels(out_frame);
+        thisDetour.checkMemory();
         thisDetour.addFrame(out_frame); 
         }
 }
@@ -341,6 +342,45 @@ void ofApp::receiveMessages(){
                 ofLog() << "detour off !";
                 isDetour = false;
             }
+        else if(m.getAddress() == "/detour/is_playing"){
+                thisDetour.is_playing = m.getArgAsBool(0);
+            }
+        else if(m.getAddress() == "/detour/is_recording"){
+                ofLog() << "it is setting recording to " << m.getArgAsBool(0); 
+                thisDetour.is_recording = m.getArgAsBool(0);
+            }
+        else if(m.getAddress() == "/detour/record_loop"){
+                thisDetour.record_loop = m.getArgAsBool(0);
+            }
+        else if(m.getAddress() == "/detour/clear_this_detour"){
+                thisDetour.detour_start = 0;
+                thisDetour.detour_end = 0;
+                thisDetour.detour_position_part = 0;
+                thisDetour.detour_position = 0;
+                thisDetour.detours[thisDetour.current_detour].clear();
+            }
+        else if(m.getAddress() == "/detour/set_speed_position"){
+                float value = m.getArgAsFloat(0);
+                if(thisDetour.is_playing){thisDetour.setSpeed(value);}
+                else {thisDetour.setPosition(value);}
+            }
+        else if(m.getAddress() == "/detour/set_start"){
+                thisDetour.setStart(m.getArgAsFloat(0));
+             }
+        else if(m.getAddress() == "/detour/set_end"){
+                thisDetour.setEnd(m.getArgAsFloat(0));
+             }
+        else if(m.getAddress() == "/detour/set_mix"){
+                thisDetour.mix_position = m.getArgAsFloat(0);
+                mixConjur.shaderParams[0] = thisDetour.mix_position;
+             }
+        else if(m.getAddress() == "/detour/switch_to_detour_number"){
+                thisDetour.current_detour = m.getArgAsInt(0);
+                thisDetour.detour_start = 0;
+                thisDetour.detour_end = 0;
+                thisDetour.detour_position = 0;
+                thisDetour.detour_position_part = 0;
+             }
 
         else if(m.getAddress() == "/capture/record/stop"){
 
@@ -401,6 +441,9 @@ void ofApp::checkPlayerPositions(){
         if(cPlayer.status == "PLAYING"){
             sendFloatMessage("/player/c/position", cPlayer.getPosition());
         }
+        if(isDetour){
+            sendDetourMessage(thisDetour.detour_position, thisDetour.detour_start, thisDetour.detour_end, thisDetour.detours[thisDetour.current_detour].size(), thisDetour.detour_speed, thisDetour.mix_position, thisDetour.memory_full);
+            }
         lastTime = (int)ofGetElapsedTimef();
     }
 }
@@ -421,4 +464,17 @@ void ofApp::sendStringMessage(string address, string value){
     sender.sendMessage(response, true);
 }
 
+void ofApp::sendDetourMessage(int position, int start, int end, int size, float speed, float mix, bool memory_full ){
+    ofxOscMessage response;
+    response.setAddress("/detour/detour_info");
+    response.addIntArg(position);
+    response.addIntArg(start);
+    response.addIntArg(end);
+    response.addIntArg(size);
+    response.addFloatArg(speed);
+    response.addFloatArg(mix);
+    response.addBoolArg(memory_full);
+
+    sender.sendMessage(response, true);
+}
 
