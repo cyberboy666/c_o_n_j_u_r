@@ -58,6 +58,7 @@ class ofApp : public ofBaseApp{
     void sendDetourMessage(int position, int start, int end, int size, float speed, float mix, bool memory_full );
     void detourUpdate();
     bool isDetour;
+    bool effectShaderInput;
     detour thisDetour;
     conjur mixConjur;
     conjur effectConjur;
@@ -67,6 +68,7 @@ class ofApp : public ofBaseApp{
     ofPixels out_frame;
     ofTexture in_texture;
     ofTexture detour_texture;
+    ofFbo in_fbo;
     ofFbo out_fbo;
     ofFbo mix_fbo;
 

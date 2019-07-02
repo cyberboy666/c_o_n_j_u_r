@@ -28,17 +28,18 @@ void ofApp::setup(){
     processShader = false;
     // detour demo
     isDetour = false;
+    effectShaderInput = false;
     thisDetour.setup();
 
     mixConjur.setup();
-    mixConjur.loadShaderFiles("/home/pi/Shaders/default.vert", "/home/pi/r_e_c_u_r/shader_experiments/Shaders/2-input/wipe.frag");
     mixConjur.shaderParams[0] = 0.5;
     effectConjur.setup();
     effectInput = {};
     
     in_texture.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
     detour_texture.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
-    
+
+    in_fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);    
     out_fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
     mix_fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
     fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
@@ -79,12 +80,18 @@ void ofApp::draw(){
     fbo.draw(0,0,ofGetWidth(), ofGetHeight());
     }
     else{
-        fbo.begin();
+        if(useShader && effectShaderInput){
+            effectInput = {};
             drawCaptureAndPlayers();
-        fbo.end();
+            fbo = effectConjur.apply(effectInput);
+             }
+        else{
+             fbo.begin();
+                drawCaptureAndPlayers();
+             fbo.end();
+        }
     detourUpdate();
     out_fbo.draw(0,0,ofGetWidth(), ofGetHeight());
-    //detour_texture.draw(0,0,ofGetWidth(), ofGetHeight());
     }
 }
 
@@ -98,11 +105,12 @@ void ofApp::detourUpdate(){
 
     vector<ofTexture> mixInput = {in_texture, detour_texture};
     mix_fbo = mixConjur.apply(mixInput);
-    if(useShader){
+    if(useShader && !effectShaderInput){
         ofTexture mix_texture = mix_fbo.getTexture();
         vector<ofTexture> effectInput = {mix_texture};
         out_fbo = effectConjur.apply(effectInput);
     }
+
     else{out_fbo = mix_fbo;}
     if(thisDetour.is_recording){
         out_fbo.readToPixels(out_frame);
@@ -157,7 +165,7 @@ void ofApp::setFrameSizeFromFile(){
 
 void ofApp::drawPlayerIfPlayingOrPaused(videoPlayer player){
   
-    if ( player.status == "PLAYING" || player.status == "PAUSED" ){
+    if (player.alpha > 0 && ( player.status == "PLAYING" || player.status == "PAUSED" ) ){
         player.draw(0, 0, ofGetWidth(), ofGetHeight());
         if(useShader && effectInput.size() < 2){
             effectInput.push_back(player.getTexture());
@@ -321,8 +329,21 @@ void ofApp::receiveMessages(){
             ofLog(OF_LOG_NOTICE, "starting record" );
                 videoGrabber.startRecording();
             }
+        else if(m.getAddress() == "/capture/record/stop"){
+
+            ofLog(OF_LOG_NOTICE, "stopping record" );
+                videoGrabber.stopRecording();
+            ofLog(OF_LOG_NOTICE, "stopped record" );
+            while(videoGrabber.isRecording()){
+                //wait for video to stop before closing;
+            }
+            ofLog() << "sending the message that it is done now";
+            sendFloatMessage("/capture/recording_finished", 0.0);
+            if(!capturePreview){videoGrabber.close();}
+            }
         else if(m.getAddress() == "/detour/start"){
                 ofLog() << "detour on !";
+                effectShaderInput = m.getArgAsBool(0);
                 isDetour = true;
             }
         else if(m.getAddress() == "/detour/end"){
@@ -368,21 +389,9 @@ void ofApp::receiveMessages(){
                 thisDetour.detour_position = 0;
                 thisDetour.detour_position_part = 0;
              }
-
-        else if(m.getAddress() == "/capture/record/stop"){
-
-            ofLog(OF_LOG_NOTICE, "stopping record" );
-                videoGrabber.stopRecording();
-            ofLog(OF_LOG_NOTICE, "stopped record" );
-                if(!capturePreview){
-                    ofLog() << "videoGrabber.isRecording() " << videoGrabber.isRecording();
-                    while(videoGrabber.isRecording()){
-                        //wait for video to stop before closing;
-                    }
-                    videoGrabber.close();
-                }
-            }
-
+        else if(m.getAddress() == "/detour/load_mix"){
+                mixConjur.loadShaderFiles("/home/pi/Shaders/default.vert", m.getArgAsString(0));
+             }
         else if(m.getAddress() == "/dev_mode"){
             ofLog(OF_LOG_NOTICE, "switching the resolution" );
             setFrameSizeFromFile();
