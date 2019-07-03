@@ -10,6 +10,7 @@
 #include "captur.h"
 #include "detour.h"
 #include "conjur.h"
+#include "recurVideoPlayer.h"
 
 class ofApp : public ofBaseApp{
 	public:
@@ -25,8 +26,8 @@ class ofApp : public ofBaseApp{
         void sendFloatMessage(string address, float value);
         void sendStringMessage(string address, string value);
         void drawCaptureAndPlayers();
-        void drawPlayerIfPlayingOrPaused(videoPlayer player);
-        void updateStatus(videoPlayer& player, string statusValue);
+        void drawPlayerIfPlayingOrPaused(recurVideoPlayer& player);
+        void updateStatus(recurVideoPlayer& player, string statusValue);
         void setupCapture(string captureType);
 
     ofxOscReceiver receiver;
@@ -36,11 +37,11 @@ class ofApp : public ofBaseApp{
     ofxXmlSettings xmlSettings;
 
     ofFbo fbo;
-    ofFbo fboTwo;
-
-    videoPlayer 		aPlayer;
-    videoPlayer 		bPlayer;
-    videoPlayer 		cPlayer;
+    
+    string playerType;
+    recurVideoPlayer 		aPlayer;
+    recurVideoPlayer 		bPlayer;
+    recurVideoPlayer 		cPlayer;
 
 
     captur videoGrabber;

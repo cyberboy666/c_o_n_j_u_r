@@ -1,3 +1,4 @@
 <settings>
     <isDevMode>1</isDevMode>
+    <playerType>omxPlayer</playerType>
 </settings>

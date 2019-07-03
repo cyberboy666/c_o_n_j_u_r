@@ -19,9 +19,9 @@ void ofApp::setup(){
     capturePreview = false;
     captureRecord = false;
 
-    aPlayer.setup("a");
-    bPlayer.setup("b");
-    cPlayer.setup("c");
+    aPlayer.setup(playerType, "a");
+    bPlayer.setup(playerType, "b");
+    cPlayer.setup(playerType, "c");
 
     lastTime = 0;
     useShader = false;
@@ -146,11 +146,12 @@ if (key == 'q'){
 void ofApp::setFrameSizeFromFile(){
 
     xmlSettings.loadFile("settings.xml");
+    playerType = xmlSettings.getValue("settings:playerType", "");
     bool isDevMode = xmlSettings.getValue("settings:isDevMode", true);
 
     if(isDevMode){
         ofSetFullscreen(0);
-        ofSetWindowShape(300,200);
+        ofSetWindowShape(600,400);
         ofSetWindowPosition(50,500);
         fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
         
@@ -163,7 +164,7 @@ void ofApp::setFrameSizeFromFile(){
         }
 }
 
-void ofApp::drawPlayerIfPlayingOrPaused(videoPlayer player){
+void ofApp::drawPlayerIfPlayingOrPaused(recurVideoPlayer& player){
   
     if (player.alpha > 0 && ( player.status == "PLAYING" || player.status == "PAUSED" ) ){
         player.draw(0, 0, ofGetWidth(), ofGetHeight());
@@ -204,15 +205,15 @@ void ofApp::receiveMessages(){
             updateStatus(cPlayer, "PLAYING");
         }
         else if(m.getAddress() == "/player/a/pause"){
-            aPlayer.setPaused(true);
+            aPlayer.pausePlayer();
             updateStatus(aPlayer, "PAUSED");
         }
         else if(m.getAddress() == "/player/b/pause"){
-            bPlayer.setPaused(true);
+            bPlayer.pausePlayer();
             updateStatus(bPlayer, "PAUSED");
         }
         else if(m.getAddress() == "/player/c/pause"){
-            cPlayer.setPaused(true);
+            cPlayer.pausePlayer();
             updateStatus(cPlayer, "PAUSED");
         }
         else if(m.getAddress() == "/player/a/alpha"){
@@ -421,7 +422,7 @@ void ofApp::checkPlayerStatuses(){
     if(cIsFinished){updateStatus(cPlayer, "FINISHED");}
 }
 
-void ofApp::updateStatus(videoPlayer& player, string statusValue){
+void ofApp::updateStatus(recurVideoPlayer& player, string statusValue){
     player.status = statusValue;
     sendStringMessage("/player/" + player.name + "/status", statusValue);
     }

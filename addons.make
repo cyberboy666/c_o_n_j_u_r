@@ -3,6 +3,7 @@ ofxOMXCamera
 ofxXmlSettings
 ofxVideoArtTools
 ofxVideoRecorder
+ofxOMXPlayer
 ofxPoco
 
 ofxMidi
