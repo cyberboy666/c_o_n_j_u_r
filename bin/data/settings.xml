@@ -1,4 +1,4 @@
 <settings>
     <isDevMode>1</isDevMode>
-    <playerType>omxPlayer</playerType>
+    <playerType>ofvideoplayer</playerType>
 </settings>

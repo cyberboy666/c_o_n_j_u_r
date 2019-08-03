@@ -280,7 +280,7 @@ void ofApp::receiveMessages(){
             sendFloatMessage("/player/c/position", cPlayer.getPosition());
         }
         else if(m.getAddress() == "/shader/load"){
-            effectConjur.loadShaderFiles("/home/pi/Shaders/default.vert", m.getArgAsString(0));
+            effectConjur.loadShaderFiles("/home/pi/r_e_c_u_r/Shaders/default.vert", m.getArgAsString(0));
             processShader = m.getArgAsBool(1);
             }
         else if(m.getAddress() == "/shader/param"){
