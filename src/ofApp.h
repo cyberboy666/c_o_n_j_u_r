@@ -3,7 +3,6 @@
 #include "ofMain.h"
 #include "ofxOsc.h"
 #include "ofAppEGLWindow.h"
-#include "OMX_Maps.h"
 #include "ofxXmlSettings.h"
 #include "videoPlayer.h"
 #include "captur.h"

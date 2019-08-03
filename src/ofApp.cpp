@@ -391,7 +391,7 @@ void ofApp::receiveMessages(){
                 thisDetour.detour_position_part = 0;
              }
         else if(m.getAddress() == "/detour/load_mix"){
-                mixConjur.loadShaderFiles("/home/pi/Shaders/default.vert", m.getArgAsString(0));
+                mixConjur.loadShaderFiles("/home/pi/r_e_c_u_r/Shaders/default.vert", m.getArgAsString(0));
              }
         else if(m.getAddress() == "/dev_mode"){
             ofLog(OF_LOG_NOTICE, "switching the resolution" );
