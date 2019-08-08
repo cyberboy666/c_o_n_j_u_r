@@ -47,7 +47,7 @@ class ofApp : public ofBaseApp{
     string captureType;
     bool capturePreview;
     bool captureRecord;
-
+    int framerate;
 
     ofShader 		shader;
     bool useShader;

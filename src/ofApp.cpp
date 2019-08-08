@@ -8,6 +8,9 @@ void ofApp::setup(){
     ofHideCursor();    
     //ofSetFullscreen(1);
     // toggle these for dev mode ?
+    framerate = 30;
+    ofSetFrameRate(framerate);
+
 
     setFrameSizeFromFile();
 
@@ -301,7 +304,7 @@ void ofApp::receiveMessages(){
 
             ofLog(OF_LOG_NOTICE, "the videoGrabber state is " + ofToString(videoGrabber.isReady()) );
             if (!videoGrabber.isReady()){
-                videoGrabber.setup(captureType);
+                videoGrabber.setup(captureType, ofGetWidth(), ofGetHeight(), framerate);
                 //videoGrabber.reset();
                 }
             ofLog(OF_LOG_NOTICE, "starting the capture" );
@@ -323,7 +326,7 @@ void ofApp::receiveMessages(){
 
         else if(m.getAddress() == "/capture/record/start"){
             if (!videoGrabber.isReady()){
-                videoGrabber.setup(captureType);
+                videoGrabber.setup(captureType, ofGetWidth(), ofGetHeight(), framerate);
                 //videoGrabber.reset();
                 }
             ofLog(OF_LOG_NOTICE, "starting the capture" );
