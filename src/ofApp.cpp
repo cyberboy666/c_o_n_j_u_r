@@ -10,7 +10,7 @@ void ofApp::setup(){
     // toggle these for dev mode ?
     framerate = 30;
     ofSetFrameRate(framerate);
-
+    
 
     setFrameSizeFromFile();
 
@@ -30,9 +30,12 @@ void ofApp::setup(){
     useShader = false;
     processShader = false;
     // detour demo
+    thisDetour.setup();
+    thisDetour.is_delay = isDetourDelay;
+
     isDetour = false;
     effectShaderInput = false;
-    thisDetour.setup();
+
 
     mixConjur.setup();
     mixConjur.shaderParams[0] = 0.5;
@@ -101,7 +104,7 @@ void ofApp::draw(){
 void ofApp::detourUpdate(){
     fbo.readToPixels(in_frame);
     in_frame.resize(ofGetWidth(), ofGetHeight());
-    detour_frame = thisDetour.getFrame();
+    detour_frame = thisDetour.getFrame(in_frame); // passing in_frame here for delay_mode
 
     in_texture.loadData(in_frame.getData(), in_frame.getWidth(), in_frame.getHeight(), GL_RGB);
     detour_texture.loadData(detour_frame.getData(), detour_frame.getWidth(), detour_frame.getHeight(), GL_RGB);
@@ -150,6 +153,7 @@ void ofApp::setFrameSizeFromFile(){
 
     xmlSettings.loadFile("settings.xml");
     playerType = xmlSettings.getValue("settings:playerType", "");
+    isDetourDelay = xmlSettings.getValue("settings:delayMode", true);
     bool isDevMode = xmlSettings.getValue("settings:isDevMode", true);
 
     if(isDevMode){
@@ -289,6 +293,9 @@ void ofApp::receiveMessages(){
         else if(m.getAddress() == "/shader/param"){
             effectConjur.shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
         }
+        else if(m.getAddress() == "/shader/speed"){
+            effectConjur.setSpeed(m.getArgAsFloat(1));
+        }
         else if(m.getAddress() == "/shader/start"){
             useShader = true;
         }
@@ -373,7 +380,8 @@ void ofApp::receiveMessages(){
             }
         else if(m.getAddress() == "/detour/set_speed_position"){
                 float value = m.getArgAsFloat(0);
-                if(thisDetour.is_playing){thisDetour.setSpeed(value);}
+                if(thisDetour.is_delay){thisDetour.setDelaySize(value); }
+                else if(thisDetour.is_playing){thisDetour.setSpeed(value);}
                 else {thisDetour.setPosition(value);}
             }
         else if(m.getAddress() == "/detour/set_start"){
@@ -381,6 +389,9 @@ void ofApp::receiveMessages(){
              }
         else if(m.getAddress() == "/detour/set_end"){
                 thisDetour.setEnd(m.getArgAsFloat(0));
+             }
+        else if(m.getAddress() == "/detour/set_delay_mode"){
+                thisDetour.is_delay = m.getArgAsBool(0);
              }
         else if(m.getAddress() == "/detour/set_mix"){
                 thisDetour.mix_position = m.getArgAsFloat(0);

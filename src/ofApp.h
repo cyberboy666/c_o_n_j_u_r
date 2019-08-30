@@ -57,6 +57,7 @@ class ofApp : public ofBaseApp{
     void sendDetourMessage(int position, int start, int end, int size, float speed, float mix, bool memory_full );
     void detourUpdate();
     bool isDetour;
+    bool isDetourDelay;
     bool effectShaderInput;
     detour thisDetour;
     conjur mixConjur;
