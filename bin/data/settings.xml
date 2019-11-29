@@ -1,4 +1,5 @@
 <settings>
-    <isDevMode>0</isDevMode>
-    <playerType>ofvideoplayer</playerType>
+    <isDevMode>1</isDevMode>
+    <delayMode>0</delayMode>
+    <playerType>ofxomxplayer</playerType>
 </settings>

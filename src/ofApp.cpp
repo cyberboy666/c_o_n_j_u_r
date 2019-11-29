@@ -158,8 +158,8 @@ void ofApp::setFrameSizeFromFile(){
 
     if(isDevMode){
         ofSetFullscreen(0);
-        ofSetWindowShape(600,400);
-        ofSetWindowPosition(50,500);
+        ofSetWindowShape(300,200);
+        ofSetWindowPosition(400,200);
         fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
         
         }
@@ -260,22 +260,22 @@ void ofApp::receiveMessages(){
             //ofLog(OF_LOG_NOTICE, "the new speed is " + ofToString(cPlayer.getSpeed()));
         }
         else if(m.getAddress() == "/player/a/quit"){
-            aPlayer.quitPlayer();
+            //aPlayer.quitPlayer();
             //aPlayer.stop();
             updateStatus(aPlayer, "STOPPED");
-            //aPlayer.close();
+            aPlayer.close();
         }
         else if(m.getAddress() == "/player/b/quit"){
-            bPlayer.quitPlayer();            
+            //bPlayer.quitPlayer();            
             //bPlayer.stop();            
             updateStatus(bPlayer, "STOPPED");
-            //bPlayer.close();
+            bPlayer.close();
         }
         else if(m.getAddress() == "/player/c/quit"){
-            cPlayer.quitPlayer();            
+            //cPlayer.quitPlayer();            
             //cPlayer.stop();   
             updateStatus(cPlayer, "STOPPED");         
-            //cPlayer.close();
+            cPlayer.close();
         }
         else if(m.getAddress() == "/player/a/get_position"){
             sendFloatMessage("/player/a/position", aPlayer.getPosition());
