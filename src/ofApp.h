@@ -24,6 +24,7 @@ class ofApp : public ofBaseApp{
         void sendFloatMessage(string address, float value);
         void sendStringMessage(string address, string value);
         void drawCaptureAndPlayers();
+        ofFbo applyEffectShaderChain(vector<ofTexture> effectInput);
         void drawPlayerIfPlayingOrPaused(recurVideoPlayer& player);
         void updateStatus(recurVideoPlayer& player, string statusValue);
         void setupCapture(string captureType);
@@ -51,17 +52,22 @@ class ofApp : public ofBaseApp{
 
     ofShader 		shader;
     bool useShader;
-    bool processShader;
     int lastTime;
 // === detour demo
     void sendDetourMessage(int position, int start, int end, int size, float speed, float mix, bool memory_full );
     void detourUpdate();
     bool isDetour;
     bool isDetourDelay;
+    bool isFeedback;
     bool effectShaderInput;
     detour thisDetour;
-    conjur mixConjur;
-    conjur effectConjur;
+    conjur mixShader;
+    conjur effectShader0;
+    conjur effectShader1;
+    conjur effectShader2;
+    bool effectShader0active;
+    bool effectShader1active;
+    bool effectShader2active;
     vector<ofTexture> effectInput;
     ofPixels in_frame;
     ofPixels detour_frame;

@@ -26,9 +26,8 @@ void ofApp::setup(){
     bPlayer.setup(playerType, "b");
     cPlayer.setup(playerType, "c");
 
-    lastTime = 0;
     useShader = false;
-    processShader = false;
+    lastTime = 0;
     // detour demo
     thisDetour.setup();
     thisDetour.is_delay = isDetourDelay;
@@ -36,10 +35,17 @@ void ofApp::setup(){
     isDetour = false;
     effectShaderInput = false;
 
+    isFeedback = false;
 
-    mixConjur.setup();
-    mixConjur.shaderParams[0] = 0.5;
-    effectConjur.setup();
+    mixShader.setup();
+    mixShader.shaderParams[0] = 0.5;
+
+    effectShader0.setup();
+    effectShader1.setup();
+    effectShader2.setup();
+    effectShader0active = false;
+    effectShader1active = false;
+    effectShader2active = false;
     effectInput = {};
     
     in_texture.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
@@ -71,34 +77,42 @@ void ofApp::update(){
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-
-    if(!isDetour){
-        if(useShader){
-            effectInput = {};
-            drawCaptureAndPlayers();
-            fbo = effectConjur.apply(effectInput);
-             }
-        else{
-             fbo.begin();
-                drawCaptureAndPlayers();
-             fbo.end();
-        }
-    fbo.draw(0,0,ofGetWidth(), ofGetHeight());
+    useShader = effectShader0active || effectShader1active || effectShader2active;
+    // if detour mode then only draw effect now if set to input , otherwise draw this in detour meathod
+    bool drawEffectShader = useShader && ( !isDetour || effectShaderInput);
+    if(drawEffectShader){
+        effectInput = {};
+        drawCaptureAndPlayers();
+        fbo = applyEffectShaderChain(effectInput);
+         }
+    else{
+        fbo.begin();
+        drawCaptureAndPlayers();
+        fbo.end();
+    }
+    if(isDetour){
+        detourUpdate();
     }
     else{
-        if(useShader && effectShaderInput){
-            effectInput = {};
-            drawCaptureAndPlayers();
-            fbo = effectConjur.apply(effectInput);
-             }
-        else{
-             fbo.begin();
-                drawCaptureAndPlayers();
-             fbo.end();
-        }
-    detourUpdate();
-    out_fbo.draw(0,0,ofGetWidth(), ofGetHeight());
+        out_fbo = fbo;
     }
+    out_fbo.draw(0,0,ofGetWidth(), ofGetHeight());
+}
+
+ofFbo ofApp::applyEffectShaderChain(vector<ofTexture> effectInput){
+    if(effectShader0active){
+        fbo = effectShader0.apply(effectInput);
+        effectInput.insert(effectInput.begin(), fbo.getTexture());
+    }
+    if(effectShader1active){
+        fbo = effectShader1.apply(effectInput);
+        effectInput.insert(effectInput.begin(), fbo.getTexture());
+    }
+    if(effectShader2active){
+        fbo = effectShader2.apply(effectInput);
+        effectInput.insert(effectInput.begin(), fbo.getTexture());
+    }
+    return fbo;
 }
 
 void ofApp::detourUpdate(){
@@ -110,11 +124,11 @@ void ofApp::detourUpdate(){
     detour_texture.loadData(detour_frame.getData(), detour_frame.getWidth(), detour_frame.getHeight(), GL_RGB);
 
     vector<ofTexture> mixInput = {in_texture, detour_texture};
-    mix_fbo = mixConjur.apply(mixInput);
+    mix_fbo = mixShader.apply(mixInput);
     if(useShader && !effectShaderInput){
         ofTexture mix_texture = mix_fbo.getTexture();
         vector<ofTexture> effectInput = {mix_texture};
-        out_fbo = effectConjur.apply(effectInput);
+        out_fbo = applyEffectShaderChain(effectInput);
     }
 
     else{out_fbo = mix_fbo;}
@@ -128,18 +142,17 @@ void ofApp::detourUpdate(){
 //--------------------------------------------------------------
 
 void ofApp::drawCaptureAndPlayers(){
-    if (capturePreview){ // && videoGrabber.isFrameNew()){
-        if(useShader){ 
-            effectInput.push_back(videoGrabber.getTexture());
-            //ofLog() << "capture is texture " << effectInput.size(); 
-        }
-    }
- 
+
     drawPlayerIfPlayingOrPaused(cPlayer);
     drawPlayerIfPlayingOrPaused(bPlayer);
     drawPlayerIfPlayingOrPaused(aPlayer);
-if (capturePreview){
+    if (capturePreview){
         videoGrabber.draw(0,0,ofGetWidth(), ofGetHeight());
+        effectInput.insert(effectInput.begin(), videoGrabber.getTexture());
+    }
+    if(isFeedback){
+        out_fbo.draw(0,0,ofGetWidth(), ofGetHeight());
+        effectInput.insert(effectInput.begin(), out_fbo.getTexture());
     }
 }
 
@@ -159,7 +172,7 @@ void ofApp::setFrameSizeFromFile(){
     if(isDevMode){
         ofSetFullscreen(0);
         ofSetWindowShape(300,200);
-        ofSetWindowPosition(400,200);
+        ofSetWindowPosition(600,400);
         fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
         
         }
@@ -176,7 +189,7 @@ void ofApp::drawPlayerIfPlayingOrPaused(recurVideoPlayer& player){
     if (player.alpha > 0 && ( player.status == "PLAYING" || player.status == "PAUSED" ) ){
         player.draw(0, 0, ofGetWidth(), ofGetHeight());
         if(useShader && effectInput.size() < 2){
-            effectInput.push_back(player.getTexture());
+            effectInput.insert(effectInput.begin(), player.getTexture());
             //ofLog() << "player " << player.name << " is texture " << effectInput.size();
             }
     }
@@ -286,15 +299,33 @@ void ofApp::receiveMessages(){
         else if(m.getAddress() == "/player/c/get_position"){
             sendFloatMessage("/player/c/position", cPlayer.getPosition());
         }
-        else if(m.getAddress() == "/shader/load"){
-            effectConjur.loadShaderFiles("/home/pi/r_e_c_u_r/Shaders/default.vert", m.getArgAsString(0));
-            processShader = m.getArgAsBool(1);
+        else if(m.getAddress() == "/shader/0/load"){
+            ofLog() << "loading shader 0 now !!!!";
+            effectShader0.loadShaderFiles("/home/pi/r_e_c_u_r/Shaders/default.vert", m.getArgAsString(0));
             }
-        else if(m.getAddress() == "/shader/param"){
-            effectConjur.shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
+        else if(m.getAddress() == "/shader/1/load"){
+            effectShader1.loadShaderFiles("/home/pi/r_e_c_u_r/Shaders/default.vert", m.getArgAsString(0));
+            }
+        else if(m.getAddress() == "/shader/2/load"){
+            effectShader2.loadShaderFiles("/home/pi/r_e_c_u_r/Shaders/default.vert", m.getArgAsString(0));
+            }
+        else if(m.getAddress() == "/shader/0/param"){
+            effectShader0.shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
         }
-        else if(m.getAddress() == "/shader/speed"){
-            effectConjur.setSpeed(m.getArgAsFloat(1));
+        else if(m.getAddress() == "/shader/1/param"){
+            effectShader1.shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
+        }
+        else if(m.getAddress() == "/shader/2/param"){
+            effectShader2.shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
+        }
+        else if(m.getAddress() == "/shader/0/speed"){
+            effectShader0.setSpeed(m.getArgAsFloat(0));
+        }
+        else if(m.getAddress() == "/shader/1/speed"){
+            effectShader1.setSpeed(m.getArgAsFloat(0));
+        }
+        else if(m.getAddress() == "/shader/2/speed"){
+            effectShader2.setSpeed(m.getArgAsFloat(0));
         }
         else if(m.getAddress() == "/shader/start"){
             useShader = true;
@@ -302,10 +333,19 @@ void ofApp::receiveMessages(){
         else if(m.getAddress() == "/shader/stop"){
             useShader = false;
         }
+        else if(m.getAddress() == "/shader/0/is_active"){
+            effectShader0active = m.getArgAsBool(0);
+            ofLog() << "shader0 is active : " << m.getArgAsBool(0);
+        }
+        else if(m.getAddress() == "/shader/1/is_active"){
+            effectShader1active = m.getArgAsBool(0);
+        }
+        else if(m.getAddress() == "/shader/2/is_active"){
+            effectShader2active = m.getArgAsBool(0);
+        }
         else if(m.getAddress() == "/capture/setup"){
             ofLog(OF_LOG_NOTICE, "setting up the capture type" + m.getArgAsString(0) );
             captureType = m.getArgAsString(0);
-
         }
         else if(m.getAddress() == "/capture/preview/start"){
 
@@ -352,6 +392,9 @@ void ofApp::receiveMessages(){
             sendFloatMessage("/capture/recording_finished", 0.0);
             if(!capturePreview){videoGrabber.close();}
             }
+        else if(m.getAddress() == "/toggle_feedback"){
+                isFeedback = m.getArgAsBool(0);
+                }
         else if(m.getAddress() == "/detour/start"){
                 ofLog() << "detour on !";
                 effectShaderInput = m.getArgAsBool(0);
@@ -395,7 +438,7 @@ void ofApp::receiveMessages(){
              }
         else if(m.getAddress() == "/detour/set_mix"){
                 thisDetour.mix_position = m.getArgAsFloat(0);
-                mixConjur.shaderParams[0] = thisDetour.mix_position;
+                mixShader.shaderParams[0] = thisDetour.mix_position;
              }
         else if(m.getAddress() == "/detour/switch_to_detour_number"){
                 thisDetour.current_detour = m.getArgAsInt(0);
@@ -405,7 +448,7 @@ void ofApp::receiveMessages(){
                 thisDetour.detour_position_part = 0;
              }
         else if(m.getAddress() == "/detour/load_mix"){
-                mixConjur.loadShaderFiles("/home/pi/r_e_c_u_r/Shaders/default.vert", m.getArgAsString(0));
+                mixShader.loadShaderFiles("/home/pi/r_e_c_u_r/Shaders/default.vert", m.getArgAsString(0));
              }
         else if(m.getAddress() == "/dev_mode"){
             ofLog(OF_LOG_NOTICE, "switching the resolution" );
