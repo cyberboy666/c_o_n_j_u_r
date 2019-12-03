@@ -36,6 +36,7 @@ void ofApp::setup(){
     effectShaderInput = false;
 
     isFeedback = false;
+    strobe = 0;
 
     mixShader.setup();
     mixShader.shaderParams[0] = 0.5;
@@ -77,6 +78,18 @@ void ofApp::update(){
 
 //--------------------------------------------------------------
 void ofApp::draw(){
+
+    if(strobe == 0){
+        drawScreen();
+    }
+    else if(ofGetFrameNum() % strobe == 0){
+        drawScreen();
+    }
+
+    out_fbo.draw(0,0,ofGetWidth(), ofGetHeight());
+}
+
+void ofApp::drawScreen(){
     useShader = effectShader0active || effectShader1active || effectShader2active;
     // if detour mode then only draw effect now if set to input , otherwise draw this in detour meathod
     bool drawEffectShader = useShader && ( !isDetour || effectShaderInput);
@@ -96,7 +109,7 @@ void ofApp::draw(){
     else{
         out_fbo = fbo;
     }
-    out_fbo.draw(0,0,ofGetWidth(), ofGetHeight());
+
 }
 
 ofFbo ofApp::applyEffectShaderChain(vector<ofTexture> effectInput){
@@ -394,6 +407,9 @@ void ofApp::receiveMessages(){
             }
         else if(m.getAddress() == "/toggle_feedback"){
                 isFeedback = m.getArgAsBool(0);
+                }
+        else if(m.getAddress() == "/set_strobe"){
+                strobe = m.getArgAsInt(0);
                 }
         else if(m.getAddress() == "/detour/start"){
                 ofLog() << "detour on !";

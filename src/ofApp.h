@@ -15,7 +15,7 @@ class ofApp : public ofBaseApp{
 		void setup();
 		void update();
 		void draw();
-		
+		void drawScreen();
 		void keyPressed(int key);
         void receiveMessages();
         void setFrameSizeFromFile();
@@ -49,8 +49,8 @@ class ofApp : public ofBaseApp{
     bool capturePreview;
     bool captureRecord;
     int framerate;
+    int strobe;
 
-    ofShader 		shader;
     bool useShader;
     int lastTime;
 // === detour demo
