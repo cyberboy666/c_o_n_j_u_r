@@ -1,5 +1,8 @@
 #include "ofApp.h"
 
+// #include <filesystem>
+// namespace fs = std::filesystem;
+
 //--------------------------------------------------------------
 void ofApp::setup(){
     
@@ -40,14 +43,15 @@ void ofApp::setup(){
 
     mixShader.setup();
     mixShader.shaderParams[0] = 0.5;
-
+    
     effectShader0.setup();
     effectShader1.setup();
     effectShader2.setup();
     effectShader0active = false;
     effectShader1active = false;
     effectShader2active = false;
-    effectInput = {};
+   
+ effectInput = {};
     
     in_texture.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
     detour_texture.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
@@ -144,6 +148,7 @@ void ofApp::detourUpdate(){
         out_fbo = applyEffectShaderChain(effectInput);
     }
 
+
     else{out_fbo = mix_fbo;}
     if(thisDetour.is_recording){
         out_fbo.readToPixels(out_frame);
@@ -173,6 +178,9 @@ void ofApp::keyPressed(int key){
 if (key == 'q'){
         ofExit();
         }
+ else if (key == 's') {
+   // printStatus();
+ }
     }
 
 void ofApp::setFrameSizeFromFile(){
@@ -208,10 +216,19 @@ void ofApp::drawPlayerIfPlayingOrPaused(recurVideoPlayer& player){
     }
 }
 
+// void ofApp::loadShadersFromMsg(u_int idx, ofxOscMessage m) { 
+//   // TODO: use shader array
+//             effectShader0.loadShaderFiles("/home/pi/r_e_c_u_r/Shaders/default.vert", m.getArgAsString(0));
+// }
+
 void ofApp::receiveMessages(){
     while(receiver.hasWaitingMessages()){
         ofxOscMessage m;
         receiver.getNextMessage(m);
+        
+        ofLog(OF_LOG_NOTICE, "the m (mesage) is " + ofToString(m));
+        // cout << "Your favorite number is " << m << "\n";
+
         
         if(m.getAddress() == "/player/a/load"){
             aPlayer.loadPlayer(m.getArgAsString(0), m.getArgAsFloat(1), m.getArgAsFloat(2), m.getArgAsFloat(3) );
@@ -314,13 +331,13 @@ void ofApp::receiveMessages(){
         }
         else if(m.getAddress() == "/shader/0/load"){
             ofLog() << "loading shader 0 now !!!!";
-            effectShader0.loadShaderFiles("/home/pi/r_e_c_u_r/Shaders/default.vert", m.getArgAsString(0));
+            effectShader0.loadShaderFiles(m.getArgAsString(0), m.getArgAsString(1));
             }
         else if(m.getAddress() == "/shader/1/load"){
-            effectShader1.loadShaderFiles("/home/pi/r_e_c_u_r/Shaders/default.vert", m.getArgAsString(0));
+            effectShader1.loadShaderFiles(m.getArgAsString(0), m.getArgAsString(1));
             }
         else if(m.getAddress() == "/shader/2/load"){
-            effectShader2.loadShaderFiles("/home/pi/r_e_c_u_r/Shaders/default.vert", m.getArgAsString(0));
+            effectShader2.loadShaderFiles(m.getArgAsString(0), m.getArgAsString(1));
             }
         else if(m.getAddress() == "/shader/0/param"){
             effectShader0.shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
@@ -548,3 +565,37 @@ void ofApp::sendDetourMessage(int position, int start, int end, int size, float 
     sender.sendMessage(response, true);
 }
 
+// void ofApp::printStatus() {
+// 
+//   
+//   ofLog(   "   framerate                   " + ofToString(              framerate ));
+//   ofLog( " receiver                      " +   ofToString(        receiver ));
+//   ofLog( "     hasCapture                    " + ofToString(         hasCapture ));
+//   ofLog( "   captureType              " +      ofToString(    captureType ));
+//   ofLog( " capturePreview           " +        ofToString(  capturePreview ));
+//   ofLog( "   captureRecord            " +      ofToString(    captureRecord ));
+//   ofLog( " useShader                " +        ofToString(  useShader ));
+//   ofLog( "   lastTime                 " +      ofToString(    lastTime ));
+//     ofLog( " thisDetour               " +      ofToString(    thisDetour ));
+//     ofLog( "   thisDetour.is_delay      " +    ofToString(      thisDetour.is_delay ));
+//     ofLog( " isDetour                 " +      ofToString(    isDetour ));
+//     ofLog( "   effectShaderInput        " +    ofToString(      effectShaderInput ));
+//     ofLog( " isFeedback               " +      ofToString(    isFeedback ));
+//     ofLog( "   strobe                   " +    ofToString(      strobe ));
+//     ofLog( " mixShader                " +      ofToString(    mixShader ));
+//     ofLog( "   mixShader.shaderParams   " +    ofToString(      mixShader.shaderParams ));
+//     ofLog( " effectShader0            " +      ofToString(    effectShader0 ));
+//     ofLog( "   effectShader1            " +    ofToString(      effectShader1 ));
+//     ofLog( " effectShader2            " +      ofToString(    effectShader2 ));
+//     ofLog( "   effectShader0active      " +    ofToString(      effectShader0active ));
+//     ofLog( " effectShader1active      " +      ofToString(    effectShader1active ));
+//     ofLog( "   effectShader2active      " +    ofToString(      effectShader2active ));
+//     ofLog( " effectInput              " +      ofToString(    effectInput  ));
+//     ofLog( "   in_texture               " +    ofToString(      in_texture ));
+//     ofLog( " detour_texture           " +      ofToString(    detour_texture ));
+//     ofLog( "   in_fbo                   " +    ofToString(      in_fbo ));
+//     ofLog( " out_fbo                  " +      ofToString(    out_fbo ));
+//     ofLog( "   mix_fbo                  " +    ofToString(      mix_fbo ));
+//     ofLog( " fbo                      " +      ofToString(    fbo ));
+//         
+// }

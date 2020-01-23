@@ -1,8 +1,10 @@
 #pragma once
-
+// #define TARGET_RASPBERRY_PI 0
 #include "ofMain.h"
 #include "ofxOsc.h"
+#ifdef TARGET_RASPBERRY_PI
 #include "ofAppEGLWindow.h"
+#endif
 #include "ofxXmlSettings.h"
 #include "videoPlayer.h"
 #include "captur.h"
