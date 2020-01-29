@@ -1,0 +1,204 @@
+* Schema
+ - nodes get `rendered` each cycle  [or just commands? / bindings / extractions? ]
+ - A bind of effect a to effect b is a combination of an extraction and a source
+ - how do we avoid re-rendering the graph every tick?
+ - put commands in a map by their offset so can do the following src block
+ - look for the interpreter pattern in java/c++ b/c that's what we're doing. 
+#+BEGIN_SRC cpp
+unordered_map<int, Command> byTicks;
+vector<Command> thisCycle; //  = byTicks [ getTime() 
+int clock;  // `time` after transformations
+for (auto& p : byTicks) {
+ // filter by key
+ // note that we have already sorted our commands and created a data structure
+ // which propagates the ticks . . . the graph is small so space is cheap
+ if ( time % p.first ) thisCycle.push_back(p.second);
+}
+#+END_SRC
+
+Note that a clock-trigger is achieved by creating time as source :: IO Float and applying modulo after its extraction
+Note that the type of NOT :: Int -> Int # and may be a special case of MUL
+it may be better to define the whole thing as a pure function rather than store any state, with the state being modelled somehow by Source nodes
+(i.e., last state). 
+the default tick is constant
+the other one is infinite: i.e. loading file happens only once
+#+BEGIN_SRC cpp 
+class Adder {
+  int X;
+  int Y;
+  int visit() {
+    return X + Y;
+ }
+}
+#+END_SRC 
+
+#+BEGIN_SRC cpp
+#+BEGIN_SRC dot :file state.png
+digraph StateExample {
+ LastState -> Adder [bind=X]
+ Rotation -> Adder [bind=Y]
+ Adder -> 
+#+END_SRC
+ 
+#+BEGIN_SRC dot :file foo.png
+digraph G  {
+ // SourceTime -> Value -> Extract etc.
+ SourceTime -> u_time
+ u_tick [type=bool, default=false]
+ SourceTime -> Modulo 4 ->  NOT -> u_tick 
+ u_time -> Shader1
+ 
+
+}
+#+END_SRC
+
+#+RESULTS:
+[[file:foo.png]]
+* Haskell
+:PROPERTIES:
+:header-args:haskell: :prologue ":{\n" :epilogue ":}\n"
+:END:
+#+begin_src haskell :results output
+:set prompt-cont ""
+#+end_src
+
+#+RESULTS:
+
+#+begin_src haskell :results raw
+pyth5 n =
+  [ (x, y, z)
+  | x <- [1 .. n]
+  , y <- [x .. n]
+  , z <- [y .. n]
+  , x ^ 2 + y ^ 2 == z ^ 2
+  ]
+#+end_src
+
+
+#+begin_src haskell :results raw
+pyth5 5  
+#+end_src
+
+#+RESULTS:
+[(3,4,5)]
+[]
+<interactive>:414:1-5: error:
+    • Variable not in scope: pyth4 :: Integer -> t
+    • Perhaps you meant one of these:
+        ‘pyth2’ (line 175), ‘pyth3’ (line 233)
+<interactive>:385:1-5: error:
+    • Variable not in scope: pyth4 :: Integer -> t
+    • Perhaps you meant one of these:
+        ‘pyth2’ (line 175), ‘pyth3’ (line 233)
+Bar
+Bar :: Foo
+"foo" :: [Char]
+foo
+
+
+
+
+#+BEGIN_SRC haskell 
+data Foo = Bar | Baz | Bill deriving (Show,Eq)
+:t Bar
+:t Bill
+print Bar
+let f x = let y = 3 in
+  y*x
+f 2
+#+END_SRC
+
+#+RESULTS:
+: <interactive>:146:1: error:
+:     Variable not in scope: f :: Integer -> t
+
+#+BEGIN_SRC haskell
+data Label = Output | UF_f1 | UF_f2 | UF_f3  deriving (Show,Eq)
+data Node = Node deriving Show
+data Source = Adder Int Int | Extract Label Node | Mul Int Int deriving (Show)
+print (Adder 3 3)
+#+END_SRC 
+
+Representing as subgrpahs because node attributes are actually 'Source Nodes' within a cluster
+ Note: a const is different b/c it doesn't have to be recursively rendered
+ 'output' is just another thing to be extracted; it is the result of a side-effect of the container/subgraph (larger effects node)
+ however, you might consider extracing output as monadic; it is different from a node passing on its values;
+ though, consider this: any `Source` may have a monadic computation somewhere in its dependency trace. 
+ Addition is an example of one such 'side-effect'
+
+
+#+BEGIN_SRC dot :file subgraphs.png
+digraph G {
+
+    graph [fontsize=10 fontname="Verdana" compound=true];
+    node [shape=record fontsize=10 fontname="Verdana"];
+
+    subgraph cluster_0 {
+        node [style=filled];
+        "0_tex0" [label=texture] "0_out" [label=output];
+        label = "Pika Model";
+        color=blue;
+    }
+
+    subgraph cluster_1 {
+        node [style=filled];
+        "1_tex0" [label=texture] "1_out" [label=output];
+        label = "1-input Shader";
+        color=blue;
+    }
+
+    subgraph cluster_2 {
+        node [style=filled];
+        // "texture0" "Attr6";
+        "2_tex0" [label=texture] "2_out" [label=output];
+        label = "1-input Shader";
+        color=blue;
+    }
+
+    // Edges between nodes render fine
+    // "output" -> "Attr2";
+    // "Attr2" -> "Attr3";
+    "0_out" -> "1_tex0";
+    "1_out" -> "2_tex0";
+
+}
+#+END_SRC
+
+#+RESULTS:
+[[file:subgraphs.png]]
+
+    // Edges that directly connect one shader to another
+//    "output" -> "texture0" [ltail=cluster_0 lhead=cluster_1];
+//    "output" -> "texture0" [ltail=cluster_1 lhead=cluster_2];
+#+BEGIN_SRC haskell
+data Source = Adder Int Int 
+ | Extract Label Node
+ | Mul Int Int
+ | Not Int
+ | Const Int
+ | Time Int
+ | OSC Int
+-- a Source is a node with a single value
+type Tick = Int
+data Edge = Edge Label Node Node
+-- below describes expansions of the graph sort of 
+data Command = Bind Tick Source Edge
+  | Get Source
+  | Put Int 
+-- Const is the bottom; Time is secretly the other bottom
+-- 
+-- type Edge = Map (Label Source)
+data Node = Node [(Label, Source)] -- i.e. edges. there are no attributes; attributes/defaults are edges with labels. 
+-- defaults are Const-source edges.
+type Default a = Bind (Const a) -- partial application?
+-- or is it Adder -> Const
+-- Const -> 
+get :: (Monad m) => Source -> m Int
+get (Adder x y)   = pure $ x + y 
+get (Const x)     = pure x
+get (Extract l (Node edges)   = get (find (== l))
+visit (Adder x y) = Source (x + y)
+#+END_SRC
+
+#+RESULTS:
+[[file:subgraphs.png]]
