@@ -141,6 +141,8 @@ class ofApp : public ofBaseApp{
   float cameraDistance;
   array<float, 3>  ofRotation;
   array<int, 3>  lightColor;
+  array<float, 3> ofScaler;
+  bool translateZero; // whether to zero after each translation (i.e. position state)
   ofLight light;
   bool lightTiedToCamera;
   bool lightOn;

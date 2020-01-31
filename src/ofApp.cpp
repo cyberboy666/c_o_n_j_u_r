@@ -21,13 +21,17 @@ void ofApp::setup3D() {
             ofRotation[i] = sceneConfig["ofRotate"][i].asInt(); // { 0, 1, 0 };
            ofLog(OF_LOG_NOTICE, "lightcolor " + ofToString(i));
             lightColor[i] = sceneConfig["light"]["color"][i].asInt();
+           ofLog(OF_LOG_NOTICE, "scaler " + ofToString(i));
+           ofScaler[i] = sceneConfig["ofScaler"][i].asFloat();
          }
          cameraDistance = sceneConfig["camera"]["distance"].asFloat();
-         camera.setDistance(cameraDistance);
          ofRotationAngle = sceneConfig["ofRotationAngle"].asFloat();
          modelShader.load(sceneConfig["vertShader"].asString(), sceneConfig["fragShader"].asString());
          lightOn = sceneConfig["light"]["on"].asBool();
          lightTiedToCamera = sceneConfig["light"]["tiedToCamera"].asBool();
+         // TODO: uncomment and replace
+         // camera.setDistance(cameraDistance);
+         camera.setPosition(0, 0, 525);
 
 
 }
@@ -135,6 +139,61 @@ void ofApp::update(){
     cPlayer.update();
     videoGrabber.update();
 
+
+  effectInput = {};
+
+
+  if (use3D) {
+    float utime = effectShader0.getTime();
+    fbo.begin();
+    effectShaderInput = true;
+    ofEnableDepthTest();	//Enable z-buffering
+      //Move the coordinate center to screen's center
+    // ofTranslate( ofGetWidth()*sceneTranslation[0],  ofGetHeight()*sceneTranslation[1], 1*sceneTranslation[2] );
+      if (lightTiedToCamera) {
+        camera.begin();
+             if (lightOn) light.enable();
+    } else {
+             if (lightOn) light.enable();
+        camera.begin();
+          }
+          
+      ofClear(0, 0, 0, 255);
+      ofBackground(255);
+      modelShader.begin();
+      camera.setDistance(cameraDistance); // cameraPosition[0], cameraPosition[1], cameraPosition[2]);
+     // rotate with vert shader for now
+      modelShader.setUniform1f("u_time", utime);
+     modelShader.setUniformTexture( "u_tex0", modelTex, 0 );
+
+     // render.setUniform1f( "twistFactor", twistFactor );
+     modelShader.setUniform1i( "lightingEnabled", lightOn);
+      for( int i = 0; i < modelUniforms.size(); i++ ) {
+        modelShader.setUniform1f("u_x" + ofToString(i), modelUniforms[i]);        
+        }
+      if (lightOn) modelShader.setUniform3f( "lightColor", float(lightColor[0]) / 255.0f, float(lightColor[1]) / 255.0f, float(lightColor[2]) / 255.0f );
+      ofPushMatrix();	//Store the coordinate system
+      // TODO: uncomment and replace
+      // ofScale( ofScaler[0], ofScaler[1], ofScaler[2]);
+      ofScale(50);
+       ofTranslate(-0.4, -6);
+      //     for (auto& p: modelUniforms) {
+      //       modelShader.setUniform1f(p.first, p.second);
+      //     }
+    if (!modelWireframe) {mesh.draw();}
+    else {mesh.drawWireframe();}
+    ofPopMatrix();	//Restore the coordinate system
+
+    modelShader.end();	//Disable the shader
+    if (lightOn) light.disable();
+    camera.end();
+    ofDisableDepthTest();
+    fbo.end();
+    
+  }
+
+
+    
     }
 
 //--------------------------------------------------------------
@@ -145,68 +204,17 @@ void ofApp::draw(){
   out_fbo.draw(0,0,ofGetWidth(), ofGetHeight());
 }
 
-// need this for 3D stuff too so pulled from conjur
-//float ofApp::getTime(){
-//    float currentElapsedTime = ofGetElapsedTimef();
-//    float diff = lastElapsedTime - currentElapsedTime;
-//    time = time + (speed*diff);
-//    lastElapsedTime = currentElapsedTime;
-//    return time;    
-//}
 void ofApp::drawScreen(){
   // should probably get time once and then pass it around
-  float utime = effectShader0.getTime();
-  if (use3D) {
-    effectShaderInput = true;
-    ofEnableDepthTest();	//Enable z-buffering
-    ofBackgroundGradient( ofColor( 255 ), ofColor( 128 ) );
-    // ofBackgroundGradient( ofColor( 255 ), ofColor( 128 ) );
-      ofPushMatrix();	//Store the coordinate system
-      //Move the coordinate center to screen's center
-      // trans.x, trans.y, trans.z
-
-      ofTranslate( ofGetWidth()*sceneTranslation[0],  ofGetHeight()*sceneTranslation[1], 1*sceneTranslation[2] );
-      if (lightTiedToCamera) {
-        camera.begin();
-             if (lightOn) light.enable();
-    } else {
-             if (lightOn) light.enable();
-        camera.begin();
-          }
-          
-      modelShader.begin();
-      camera.setDistance(cameraDistance); // cameraPosition[0], cameraPosition[1], cameraPosition[2]);
-     // rotate with vert shader for now
-      modelShader.setUniform1f("u_time", utime);
-     modelShader.setUniformTexture( "u_tex0", modelTex, 0 );
-      for( int i = 0; i < modelUniforms.size(); i++ ) {
-        modelShader.setUniform1f("u_x" + ofToString(i), modelUniforms[i]);        
-        }
-      if (lightOn) modelShader.setUniform3f( "lightColor", float(lightColor[0]) / 255.0f, float(lightColor[1]) / 255.0f, float(lightColor[2]) / 255.0f );
-
-      //     for (auto& p: modelUniforms) {
-      //       modelShader.setUniform1f(p.first, p.second);
-      //     }
-    if (!modelWireframe) {mesh.draw();}
-    else {mesh.drawWireframe();}
-
-    modelShader.end();	//Disable the shader
-    if (lightOn) light.disable();
-    camera.end();
-    
-    ofPopMatrix();	//Restore the coordinate system
-  }
   //    for (auto& p : nodes)
   //        useShader = useShader || p.second.isActive;
         useShader = effectShader0active || effectShader1active || effectShader2active;
 
     // if detour mode then only draw effect now if set to input , otherwise draw this in detour meathod
+    if (use3D) effectInput.insert(effectInput.begin(), fbo.getTexture());
     bool drawEffectShader = useShader && ( !isDetour || effectShaderInput);
     if(drawEffectShader){
       effectInput = {};
-      if (use3D) {
-        effectInput.insert(effectInput.begin(), fbo.getTexture());
-          }
         drawCaptureAndPlayers();
         fbo = applyEffectShaderChain(effectInput);
 
@@ -219,7 +227,9 @@ void ofApp::drawScreen(){
      }
      else{
         fbo.begin();
-        drawCaptureAndPlayers();
+        // TODO remove commenting and see if fbo.draw can be dropped
+        // drawCaptureAndPlayers();
+        fbo.draw(0, 0); 
         fbo.end();
     }
     if(isDetour){
