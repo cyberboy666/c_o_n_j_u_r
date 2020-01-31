@@ -33,6 +33,7 @@ class Adder {
 #+END_SRC 
 
 #+BEGIN_SRC cpp
+#+END_SRC
 #+BEGIN_SRC dot :file state.png
 digraph StateExample {
  LastState -> Adder [bind=X]
@@ -47,14 +48,12 @@ digraph G  {
  u_tick [type=bool, default=false]
  SourceTime -> Modulo 4 ->  NOT -> u_tick 
  u_time -> Shader1
- 
-
 }
 #+END_SRC
 
 #+RESULTS:
 [[file:foo.png]]
-* Haskell
+** e.g. Haskell
 :PROPERTIES:
 :header-args:haskell: :prologue ":{\n" :epilogue ":}\n"
 :END:
@@ -78,22 +77,6 @@ pyth5 n =
 #+begin_src haskell :results raw
 pyth5 5  
 #+end_src
-
-#+RESULTS:
-[(3,4,5)]
-[]
-<interactive>:414:1-5: error:
-    • Variable not in scope: pyth4 :: Integer -> t
-    • Perhaps you meant one of these:
-        ‘pyth2’ (line 175), ‘pyth3’ (line 233)
-<interactive>:385:1-5: error:
-    • Variable not in scope: pyth4 :: Integer -> t
-    • Perhaps you meant one of these:
-        ‘pyth2’ (line 175), ‘pyth3’ (line 233)
-Bar
-Bar :: Foo
-"foo" :: [Char]
-foo
 
 
 
@@ -202,3 +185,144 @@ visit (Adder x y) = Source (x + y)
 
 #+RESULTS:
 [[file:subgraphs.png]]
+
+
+
+
+
+* Here
+ - shaderActive needs to be changed. 
+    - we don't need to check if it's active b/c it's either in the nodemap or it isn't
+ - osc addresses need to be fixed (use an action map or a visitor, and generate addresses?
+    or assume that the addresses are of the form
+    /{command}/{arg1ID}/{arg2ID}  w/ optional float values
+ - fix apply input chain (might require ofxAddons changes) [[file:~/of_v0.11.0_osx_release/apps/recur/c_o_n_j_u_r/src/ofApp.cpp::ofFbo%20ofApp::applyEffectShaderChain(vector<ofTexture>%20effectInput){][shaderChain]]
+     ofFbo ofApp::applyEffectShaderChain(vector<ofTexture> effectInput){
+ - then test with mac OSC :)
+#+BEGIN_SRC cpp :result raw :includes "<stdio.h>"
+int z = 0;
+int i = 0;
+switch (z) {
+  case 4:
+  i++;
+  break;
+  case 0:
+  i += 99;
+  break;
+ }
+printf("%d", i);
+#+END_SRC
+
+#+RESULTS:
+: 99
+
+#+BEGIN_SRC cpp
+// you could generate OSC addresses but this is easier for now
+string cmd = m.getArgAsString(0);
+Id nodeId = m.getArgAsString(1);
+ofxNode node = nodes[nodeId];
+actionMap actions = { { { "LOAD_FILE", LOAD_FILE}, 
+                         {"UPDATE_UNIFORM", UPATE_UNIFORM} } };
+if (cmd == "LOAD_FILE") {
+  dispatchUn(LOAD_FILE, node, m.getArgAsString(2));
+}
+else if (cmd == "UPDATE_UNIFORM") {
+  dispatchUn(UPDATE_UNIFORM, node, m.getArgAsString(2), m.getArgAsFloat(3))
+}
+
+int dispatchUn(Action act, ofxNode node, string arg1, float arg2) {
+int dispatchUn(Action act, ofxNode node, string arg1, string arg2) {
+ 
+ switch act {
+  case (LOAD_FILE):
+    ofxNode.loadShaderFiles(arg1, arg2);
+    return 0;
+  default:
+    return -1;
+}
+
+}
+    
+#+END_SRC
+
+#+RESULTS:
+
+* Problems
+something is happening where texCoordVarying is always zero for simple.frag
+* Tests
+
+#+NAME: Setup!
+#+BEGIN_SRC ein-python :session http://127.0.0.1:8888/notebooks/new.ipynb :results raw drawer
+from pythonosc import udp_client
+import time
+localhost = "127.0.0.1"
+port = 8000
+
+client = udp_client.SimpleUDPClient(localhost, port)
+# working
+def msg(id, frag_name, U, on=True):
+  vert_shader = 'shaders/shader.vert'
+  msgs = [ ("LOAD_FILE", id, vert_shader, frag_name),
+  ("TOGGLE_ACTIVE", id, on)] + \
+    [("UPDATE_UNIFORM", id, i, U) for i in range(4)]
+
+  for msg in msgs:
+    time.sleep(.1)
+
+    # print(msg)
+    client.send_message("/graph", msg)
+print('okay')
+#+END_SRC
+
+#+RESULTS: Setup!
+:RESULTS:
+[....]
+:END:
+
+
+
+
+
+#+NAME: Clear!
+#+BEGIN_SRC ein-python :session http://127.0.0.1:8888/notebooks/new.ipynb :results silent drawer
+msg("A1-0", gen_shader, .8, False)
+msg("B2-0", invert, .1, False)
+msg("C3-1", kscope, .1, False)
+msg("D4-2", kscope, .1, False)
+#+END_SRC
+
+#+NAME: 9D698AC8-8621-47A6-8F3F-CE3C6CAA4A7B
+#+BEGIN_SRC ein-python :session http://127.0.0.1:8888/notebooks/new.ipynb :results raw drawer
+for x in range(1):
+  gen_shader = 'shaders/hypnotic_rings.frag'
+  simple_gen = 'shaders/simple.frag'
+  kscope = 'shaders/kaleidoscope-failing.frag'
+  invert = 'shaders/invert.frag'
+  mirrorX = 'shaders/mirrorX.frag'
+  mirrorY = 'shaders/mirrorY.frag'
+  client.send_message("/shader/start", True)
+  msg("A1-0", simple_gen, .8)
+#  msg("B2-0", mirrorY, .5)
+#  msg("C3-1", mirrorX, .1)
+  # msg("D4-2", mirror, .1)
+## msg("C3-1", 'shadres/invert.frag' .5)
+  print('sent')
+  # time.sleep(6)
+print('done.')
+#+END_SRC
+
+#+RESULTS: 9D698AC8-8621-47A6-8F3F-CE3C6CAA4A7B
+:RESULTS:
+[....]
+:END:
+
+
+
+
+
+
+
+
+
+
+

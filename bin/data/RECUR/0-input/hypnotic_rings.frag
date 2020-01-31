@@ -1,6 +1,5 @@
 //0-input
 //written by Ben Caldwell
-#pragma include "headerFrag.glsl"
 #ifdef GL_ES
 precision mediump float;
 #endif
@@ -8,7 +7,6 @@ precision mediump float;
 uniform vec2 u_resolution;
 uniform float u_time;
 uniform float u_x0;
-
 uniform float u_x1;
 uniform float u_x2;
 uniform float u_x3;
@@ -32,7 +30,8 @@ void main() {
     color += vec3(0.5 + 0.5*sign(sin((0.1 + 0.05*sin(mod_time+2.0))*r1 - 1.0*mod_time)), 0.0, 0.0);
     color += vec3(0.0, 0.0, 0.5 + 0.5*sign(sin((0.1 + 0.05*sin(mod_time))*r2 - 1.2*mod_time)));
     color += vec3(0.0, 0.5 + 0.5*sign(sin((0.1 + 0.05*sin(mod_time+0.5))*r3 - 1.1*mod_time)), 0.0);
-    // color = vec3(1., 0., 0.);
-    // gl_FragColor = vec4(color,1.);
-    FRAG_COLOR = vec4(color,1.);
+
+
+
+    gl_FragColor = vec4(color,1.);
 }

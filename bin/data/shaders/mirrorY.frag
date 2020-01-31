@@ -18,8 +18,10 @@ void main()
    //FRAG_COLOR = TEXTURE(tex0, texCoordVarying);
    vec4 image;
    // image = TEXTURE(u_tex0, abs(st*sin(u_time)));
-   image = TEXTURE(u_tex0, st + abs(st*sin(u_time*3.))
-                   );
+   if(st.y > .5){st.y = 1.0 - st.y;}
+   // if(st.y < u_x1){st.y = 1.0 - st.y;}
+   image = TEXTURE(u_tex0, st);
+   // image = TEXTURE(u_tex0, vec2(st.x, abs( st.y - .5 )));
    // FRAG_COLOR = image;
    FRAG_COLOR = image; // vec4(1., 0., 0., 1.); // ) - image; // vec4(1. - image.r, 1. - image.g, 1.,  .2); // this looks cool
    // FRAG_COLOR = vec4(1.);
