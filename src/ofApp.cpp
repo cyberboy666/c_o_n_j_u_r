@@ -1,6 +1,6 @@
 #include "ofApp.h"
 #include <deque>
-
+#define IS3D true
 // #include <filesystem>
 //--------------------------------------------------------------
 void ofApp::setup(){
@@ -26,6 +26,7 @@ void ofApp::setup(){
 
     aPlayer.setup(playerType, "a");
     bPlayer.setup(playerType, "b");
+
     cPlayer.setup(playerType, "c");
 
     useShader = false;
@@ -42,6 +43,14 @@ void ofApp::setup(){
 
     mixShader.setup();
     mixShader.shaderParams[0] = 0.5;
+
+
+    effectShader0.setup(); effectShader1.setup(); effectShader2.setup();
+    effectShader0active = false; effectShader1active = false; effectShader2active = false;
+
+
+
+
     vector<Id> tmpIds { "A", "B", "C", "D", "E" };
     for (auto id : tmpIds) {
       nodeOrder.push_back(id);
@@ -57,16 +66,48 @@ void ofApp::setup(){
     in_texture.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
     detour_texture.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
 
+
     in_fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);    
     out_fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
     mix_fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
-    fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
+
+    ofFboSettings settings;
+    settings.internalformat = GL_RGB;
+    settings.width = ofGetWidth();
+    settings.height = ofGetHeight();
+    settings.useDepth = true;
+    settings.depthStencilAsTexture = true;
+    fbo.allocate(settings);
     
     fbo.begin();
         ofClear(0, 0, 0, 0);
+        ofClearAlpha();
     fbo.end();
-}
 
+    // 3d setup
+    sceneConfigFilePath = "3D/scene.json";
+    if (use3D)
+        setup3D()
+    }
+
+void setup3D() {
+      sceneConfig.open(sceneConfigFilePath);
+      bool parsingSuccessful = sceneConfig.open(file);
+      if (parsingSuccessful) {
+         ofLogNotice("ofApp::setup") << sceneConfig.getRawString();
+         model.loadModel(conf["model"].asString());
+         ofLoadImage(modelTex, conf["textureImage"].asString())
+         mesh = model.getMesh(0);
+         int cx = conf["camera"]["position"][0].asInt();
+         int cy = conf["camera"]["position"][1].asInt();
+         int cz = conf["camera"]["position"][2].asInt();
+         camera.setPostion(cx, cy, cz);
+         ofRotation = conf["ofRotate"]; // { 0, 1, 0 };
+         sceneTranslation = conf["ofTranslationMod"];
+         ofRotationAngle = conf["ofRotationAngle"].asFloat();
+         modelShader.load(conf["vertShader"].asString(), conf["fragShader"].asString());
+
+}
 void ofApp::printStatus() {
   for (auto& p : nodes) {
     ofLog( OF_LOG_NOTICE, p.first + "  "  +  p.second.id + "  " +   ofToString(p.second.isActive)); // ofDrawBitmapString("Hello there.", 10, 10);
@@ -95,19 +136,55 @@ void ofApp::draw(){
 }
 
 void ofApp::drawScreen(){
-    for (auto& p : nodes)
-        useShader = useShader || p.second.isActive;
+  if (use3D) {
+    effectShaderInput = true;
+    ofEnableDepthTest();	//Enable z-buffering
+    // ofBackgroundGradient( ofColor( 255 ), ofColor( 128 ) );
+      ofPushMatrix();	//Store the coordinate system
+      //Move the coordinate center to screen's center
+      // trans.x, trans.y, trans.z
+
+      ofTranslate( ofGetWidth()*ofTranslation[0],  ofGetHeight()*ofTranslation[1], 1*ofTranslation[2] );
+      camera.begin();
+      modelShader.begin()
+      camera.setPostion(cameraPosition[0], cameraPosition[1], cameraPosition[2]);
+     // rotate with vert shader for now
+     modelShader.setUniform1f("u_time", time);
+     modelShader.setUniformTexture( "u_tex0", modelTex, 0 );
+      for( int i = 0; i < modelUniforms.size(); i++ ){
+        shader.setUniform1f("u_x" + ofToString(i), modelUniforms[i]);        
+        }
+      //     for (auto& p: modelUniforms) {
+      //       modelShader.setUniform1f(p.first, p.second);
+      //     }
+    if (!modelWireframe) {mesh.draw();}
+    else {mesh.drawWireframe();}
+
+    modelShader.end();	//Disable the shader
+    camera.end();
+    
+    ofPopMatrix();	//Restore the coordinate system
+  }
+  //    for (auto& p : nodes)
+  //        useShader = useShader || p.second.isActive;
+        useShader = effectShader0active || effectShader1active || effectShader2active;
+
     // if detour mode then only draw effect now if set to input , otherwise draw this in detour meathod
     bool drawEffectShader = useShader && ( !isDetour || effectShaderInput);
     if(drawEffectShader){
-        effectInput = {};
-        drawCaptureAndPlayers();
-        for (auto id : nodeOrder) {
-            if (nodes[id].isActive) {
-                fbo = nodes[id].shader.apply(effectInput);
-                effectInput.insert(effectInput.begin(), fbo.getTexture());
+      effectInput = {};
+      if (use3D) {
+        effectInput.insert(effectInput.begin(), fbo.getTexture())
           }
-       }
+        drawCaptureAndPlayers();
+        fbo = applyEffectShaderChain(effectInput);
+
+        //        for (auto id : nodeOrder) {
+        //            if (nodes[id].isActive) {
+        //                fbo = nodes[id].shader.apply(effectInput);
+        //                effectInput.insert(effectInput.begin(), fbo.getTexture());
+        //          }
+        //       }
      }
      else{
         fbo.begin();
@@ -474,6 +551,7 @@ void ofApp::receiveMessages(){
              }
         
 else if(m.getAddress() == "/detour/set_mix"){
+
                 thisDetour.mix_position = m.getArgAsFloat(0);
                 mixShader.shaderParams[0] = thisDetour.mix_position;
              }
@@ -494,6 +572,49 @@ else if(m.getAddress() == "/detour/set_mix"){
         else if(m.getAddress() == "/exit"){
             ofLog(OF_LOG_NOTICE, "should exit now" );
             ofExit();
+        }
+        else if(m.getAddress() == "/scene/reload3DConfig"){
+          setup3D();
+        }
+        else if(m.getAddress() == "/scene/new3DConfig"){
+          sceneConfigPath = m.getArgAsString(0);
+          setup3D();
+        }
+        else if(m.getAddress() == "/scene/shader/param"){
+            modelUniforms[m.getArgAsInt(0)] = m.getArgAsFloat(1);
+        }
+        else if(m.getAddress() == "/scene/model/wireframe"){
+          modelWireframe = m.getArgAsBool(0);
+        }
+        else if(m.getAddress() == "/scene/of/translate/x"){
+          sceneTranslation[0] = m.getArgAsInt(0);
+        }
+        else if(m.getAddress() == "/scene/of/translate/y"){
+          sceneTranslation[1] = m.getArgAsInt(0);
+        }
+        else if(m.getAddress() == "/scene/of/translate/z"){
+          sceneTranslation[2] = m.getArgAsInt(0);
+        }
+        else if(m.getAddress() == "/scene/camera/position/x"){
+          cameraPosition[0] = m.getArgAsInt(0);
+        }
+        else if(m.getAddress() == "/scene/camera/position/y"){
+          cameraPosition[1] = m.getArgAsInt(0);
+        }
+        else if(m.getAddress() == "/scene/camera/position/z"){
+          cameraPosition[2] = m.getArgAsInt(0);
+        }
+        else if(m.getAddress() == "/scene/of/rotation/x"){
+          ofRotation[0] = m.getArgAsFloat(0);
+        }
+        else if(m.getAddress() == "/scene/of/rotation/y"){
+          ofRotation[1] = m.getArgAsFloat(0);
+        }
+        else if(m.getAddress() == "/scene/of/rotation/z"){
+          ofRotation[2] = m.getArgAsFloat(0);
+        }
+        else if(m.getAddress() == "/scene/of/rotation/angle") {
+          ofRotationAngle = m.getArgAsFloat(0);
         }
         else if(m.getAddress() == "/graph"){
           Id id = m.getArgAsString(1);

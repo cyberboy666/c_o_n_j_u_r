@@ -12,6 +12,9 @@
 #include "conjur.h"
 #include "recurVideoPlayer.h"
 #include <unordered_map>
+#include "ofxAssimpModelLoader.h"
+#include "ofxJSON.h"
+// #inlucde "ofxAutoReloadShader"
 #define UNIFORM_F_INIT 0.0
 // #include "ofxGui.h"
 // struct fxNode {
@@ -24,6 +27,40 @@
 // }
 typedef string Id; 
 typedef unordered_map<Id, string> Attributes;
+struct ThreeD {
+  int x; int y; int z;
+};
+enum shape3D {SHPERE,CUBE,CYLINDER,MODEL};  
+//struct opt3D {
+//  //    ThreeD translate;
+//  //    ThreeD rotate;
+//  //    ThreeD scale;
+//  // ofMesh* mesh;
+//    ofxAssimpModelLoader* model;
+//    string modelFile;
+//    ofEasyCam* camera;
+//    shape3D shape;
+//    vector<int> shapePoints;
+//  ofTexture tex;
+//  string configFilePath; 
+  // opt3D(ThreeD translate, ThreeD rotate, ThreeD scale, ofMesh* mesh, ofxAssimpModelLoader* model, string modelFile, ofEasyCam* camera, shape3D shape, vector<int> shapePoints, ofTexture tex) {}
+  //  opt3D() {
+  //    ThreeD translate;
+  //    ThreeD rotate;
+  //    ThreeD scale;
+  //    ofMesh* mesh;
+  //    ofxAssimpModelLoader* model;
+  //    string modelFile;
+  //    ofEasyCam* camera;
+  //    shape3D shape;
+  //    vector<int> shapePoints;
+  //  ofTexture tex;
+  //
+  //  }
+  //  void setMesh(ofMesh* mesh) {
+  //    mesh = m;
+  //  }
+// } ;
 // typedef unordered_map<Id, Command> Nodemap;
 class ofxNode {
 
@@ -64,11 +101,24 @@ public:
 class ofApp : public ofBaseApp{
 	public:
                 Nodemap nodes;
+                opt3D scene;
 		void setup();
 		void update();
 		void draw();
 		void drawScreen();
 		void keyPressed(int key);
+  ofTexture modelTex; 
+  string sceneConfigPath;
+  ofxJSONElement sceneConfig;
+  ofMesh mesh;
+  ofxAssimpModelLoader model;
+  ofEasyCam camera;
+  conjur modelShader;
+  bool use3D;
+  bool modelWireframe;
+  vector<float> modelUniforms;
+  // unordered_map<string, float> modelUniforms; 
+  // ofxAutoReloadShader modelShader;
   void printStatus();
         void receiveMessages();
         void setFrameSizeFromFile();
@@ -85,9 +135,19 @@ class ofApp : public ofBaseApp{
     vector<Id> nodeOrder;
     ofxOscReceiver receiver;
     ofxOscSender sender;
-
+  array<int, 3>  sceneTranslation;
+  array<int, 3>  cameraPosition;
+  array<float, 3>  ofRotation;
+  float ofRotationAngle;
     ofGLESWindowSettings   settings;
     ofxXmlSettings xmlSettings;
+
+    conjur effectShader0;
+    conjur effectShader1;
+    conjur effectShader2;
+    bool effectShader0active;
+    bool effectShader1active;
+    bool effectShader2active;
 
     ofFbo fbo;
     
@@ -135,5 +195,8 @@ class ofApp : public ofBaseApp{
     ofFbo out_fbo;
     ofFbo mix_fbo;
 
+  //    ofMesh mesh;
+  //    ofxAssimpModelLoader model;
+  //    ofEasyCam camera;
 
 };

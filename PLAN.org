@@ -1,4 +1,5 @@
 * Schema
+** Day1
  - nodes get `rendered` each cycle  [or just commands? / bindings / extractions? ]
  - A bind of effect a to effect b is a combination of an extraction and a source
  - how do we avoid re-rendering the graph every tick?
@@ -37,22 +38,385 @@ class Adder {
 #+BEGIN_SRC dot :file state.png
 digraph StateExample {
  LastState -> Adder [bind=X]
- Rotation -> Adder [bind=Y]
- Adder -> 
+ OSC -> Adder [bind=Y]
+ Adder -> NewRotation
+ Adder -> LastState [label="IO"]
+}
 #+END_SRC
+
+#+RESULTS:
+[[file:state.png]]
  
 #+BEGIN_SRC dot :file foo.png
 digraph G  {
  // SourceTime -> Value -> Extract etc.
  SourceTime -> u_time
  u_tick [type=bool, default=false]
- SourceTime -> Modulo 4 ->  NOT -> u_tick 
+ SourceTime -> Modulo4 ->  NOT -> u_tick 
  u_time -> Shader1
 }
 #+END_SRC
 
 #+RESULTS:
 [[file:foo.png]]
+** Day2
+#+NAME: 009BD349-7015-44AE-93D5-068599EB9F84
+#+BEGIN_SRC ein-python :session http://127.0.0.1:8888/notebooks/graphs.ipynb :results raw drawer
+if False:
+# def resolve_edges(edges: Edges[T]) -> Tuple[T, History]
+# OSC becomes a special case which overrides apply, I guess--no, it still just has a func!
+ class Node[T]:
+
+ _func: Callable[[*Node],T]
+   enum: NType
+   edges: Dict[ str, Node[Any] ] # could store edge types here
+   edgeTypes: Dict[ str, NType ] # for dot compilation
+ 
+   def apply(self) -> Tuple[T, History]:
+     args, history = {}, []
+     for e, src in edges.items(): # the edge is the label basically
+       t, hist = src.apply()
+       history.append(hist)
+       args[e] = t
+     log = self.__class, args.keys(), ags.values() 
+     history.append( log )
+     return _func(**args), history
+ Edges =  Dict[ str, Node[T] ]
+ History = Sequence [ Tuple[type, Sequence[ Node[Any] ] ] ]
+
+# Edges = Dict[str, Node]
+  # enum: NType # could just use __classname__
+
+from dataclasses import dataclass
+from typing import Callable, Any, T, Sequence
+from pydantic import BaseModel # for json schemaing etc
+from toolz import dicttoolz as dtz
+from functools import partial 
+NType = Literal[ 'ADD', 'MUL', 'SHADER', 'SCENE', 'MODEL']
+History = Sequence[Tuple[type, Dict[str, str]]
+@dataclass
+class Node:
+  _func: Callable
+  edges: Dict[ str, 'Node' ] # could store edge types here
+  id: str
+  def edgeTypes(self) -> Dict[ str, NType ]:
+    '''  useful for dot compilation'''
+  # TODO: this is a class method;
+  # TODO: please don't use 'return' as an attr lol 
+    return tlz.dissoc( self._func.__annotations__, 'return' )
+
+  def apply(self) -> Tuple[Any, History]:
+    args, history = {}, []
+    for e, src in edges.items(): # the edge is the label basically
+      t, hist = src.apply()
+      history.append(hist)
+      args[e] = t
+    log = self.__class__, dtz.valmap(args, lambda x: x.id) # args.keys(), ags.values() 
+    history.append( log )
+    return _func(**args), history
+
+def _add(x: int, y: int) -> int: 
+  return x + y
+
+
+#class ZeroUniforms: 
+# u_x0: float
+# u_x1: float
+# u_x2: float
+# u_x3: float
+#
+#class OneUniforms(ZeroUniforms):
+# tex0: Texture
+#
+#class OneUniforms(TwoUniforms):
+# tex1: Texture
+
+# class UniformBundle[T]:
+#   uniforms: Sequence[T]
+class UniformBundle[T]:
+  uniforms: Sequence[Uniform]
+# uniforms aren't really optional becuase they get set to defaults
+# def shader_0_input(fileName: str, u_x0: float, u_x1: float, u_x2: float, u_x3: float) -> Texture:
+# the fact that it is a class let's me cheat and store state
+# class Shader(Node):
+#  _func = shader_0_input
+#  _fileName: str
+#  def apply(self) -> Tuple[Any, History]:
+#   if self._fileName != self.edges['fileName'] 
+#     [LoadFile(self, self.edges['fileName'])] + super(self.__class__).apply(self)
+#     # add a command 
+# I keep getting wrapped up in the types and validation i.e. validating the Dot using the types
+# a uniform is actually a node so don't want to do this here
+# prob all this logic goes in the C++! this is just PoC here in python
+
+
+
+class Command:
+ requireChange: bool
+class ChangeCommand:
+  '''only run this command if inputs have changed.
+  The python side of things should have been able to figure that out, though, probably....'''
+  requireChange = True 
+class AlwaysCommand:
+ requireChange = False
+
+# time, going into a uniform, aquires a new label, that's all
+UType = Union[str, int, float, Texture]
+def _id(x: UType) -> UType:
+ return x
+
+Uniform = partial(Node, _id)
+class ShaderBegin(AlwaysCommand): ...
+
+class LoadFile(ChangedCommand):
+ node: Node # /  ID
+ fileName: str
+
+class SetUniform(ChangeCommand):
+ uniform: Node
+
+def shader_0_input(fileName: str, *uniforms) -> Texture: # u_x0: float, u_x1: float, u_x2: float, u_x3: float) -> Texture:
+   # need an id for these commands.
+  cmds = [ SetUniform( u.utype, u.label, u.value, u.id ) for u in uniforms ] # requires access to the node ids
+  cmds += [ LoadFile(fileName) ] 
+  cmds += [ ShaderBegin() ]
+  return cmds
+# have optional edges so just define a bunch of uniforms for Zero and have everybody inherit? IDK 
+# i.e.g u_x0: float, u_x1: float, u_x2: float, u_x3: float) -> Texture:
+
+class Add:
+ _func = lambda x, y:  + y
+ enum = "ADD"
+
+UType = Literal[ 'float', 'int', 'bool', 'texture' ]
+
+from functools import partial
+Add = patial(Node, _add, "ADD")
+Uniforms = Sequence[Uniform]
+# only execute these commands if their input has changed 
+
+
+  
+class Shift3D(ChangeCommand):
+ node: Node
+ coords: Tuple[int, int, int]
+
+class Rotate(Shift3D): ...
+class Translate(Shift3D): ...
+class Scale(Shift3D): ...
+#+END_SRC
+
+#+RESULTS: 009BD349-7015-44AE-93D5-068599EB9F84
+:RESULTS:
+[....]
+:END:
+** Python
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[70]:
+
+
+#+BEGIN_SRC ein-python :session http://127.0.0.1:8888/notebooks/new.ipynb :results raw drawer
+from pythonosc import udp_client
+import time
+localhost = "127.0.0.1"
+port = 8000
+
+client = udp_client.SimpleUDPClient(localhost, port)
+# working
+def msg(id, frag_name, U, on=True):
+  vert_shader = 'shaders/shader.vert'
+  msgs = [ ("LOAD_FILE", id, vert_shader, frag_name),
+  ("TOGGLE_ACTIVE", id, on)] + \
+    [("UPDATE_UNIFORM", id, i, U) for i in range(4)]
+
+  for msg in msgs:
+    time.sleep(.1)
+
+    # print(msg)
+    client.send_message("/graph", msg)
+print('okay')
+#+END_SRC
+
+
+# In[108]:
+
+
+# TODO:  fix the keys problem
+
+#+NAME: Clear!
+#+BEGIN_SRC ein-python :session http://127.0.0.1:8888/notebooks/new.ipynb :results silent drawer
+def clear():
+  msg("A", "", .8, False)
+  msg("B", "", .1, False)
+  msg("C", "", .1, False)
+  msg("D", "", .1, False)
+#+END_SRC
+clear()
+
+
+# In[107]:
+
+
+
+#+NAME: 9D698AC8-8621-47A6-8F3F-CE3C6CAA4A7B
+#+BEGIN_SRC ein-python :session http://127.0.0.1:8888/notebooks/new.ipynb :results raw drawer
+for x in range(1):
+  gen_shader = 'shaders/hypnotic_rings.frag'
+  simple_gen = 'RECUR/0-input/squarewaves.frag'
+  kscope = 'shaders/kaleidoscope-failing.frag'
+  invert = 'shaders/invert.frag'
+  mirrorX = 'shaders/mirrorX.frag'
+  mirrorY = 'shaders/mirrorY.frag'
+  blend = 'shaders/blend.frag'
+  client.send_message("/shader/start", True)
+  msg("A", simple_gen, .8)
+#  msg("B", mirrorX, .5)
+#  msg("C", mirrorY, .1)
+  # msg("D", mirror, .1)
+## msg("C", 'shadres/invert.frag' .5)
+  print('sent')
+  # time.sleep(6)
+print('done.')
+#+END_SRC
+
+
+# In[111]:
+
+
+clear()
+msg("A", simple_gen, .8)
+msg("B", mirrorX, .8)
+msg("C", blend, .8)
+#msg("C", mirrorY, .1)
+
+
+# In[112]:
+
+
+import typing
+
+
+# In[114]:
+
+
+def add(x: int, y: float) -> str:
+    return 'bar'
+
+
+# In[135]:
+
+
+
+Const = Uniform
+
+Add('a1', Mul('m1', Const('c1', 2), Const('c2', 4)), Const('c3', 3))
+
+
+# In[136]:
+
+
+s = set()
+
+
+# In[133]:
+
+
+from dataclasses import dataclass
+from typing import Callable, Any, T, Sequence, Tuple, Dict, Union
+from typing_extensions import  Literal
+from pydantic import BaseModel # for json schemaing etc
+from toolz import dicttoolz as dtz
+from functools import partial 
+NType = Literal[ 'ADD', 'MUL', 'SHADER', 'SCENE', 'MODEL']
+History = Sequence[Tuple[type, Dict[str, str]]]
+@dataclass
+class Node:
+  _func: Callable
+  edges: Dict[ str, 'Node' ] # could store edge types here
+  id: str
+  def edgeTypes(self) -> Dict[ str, NType ]:
+    '''  useful for dot compilation'''
+  # TODO: this is a class method;
+  # TODO: please don't use 'return' as an attr lol 
+    return tlz.dissoc( self._func.__annotations__, 'return' )
+
+  def apply(self) -> Tuple[Any, History]:
+    args, history = {}, []
+    for e, src in edges.items(): # the edge is the label basically
+      t, hist = src.apply()
+      history.append(hist)
+      args[e] = t
+    log = self.__class__, dtz.valmap(args, lambda x: x.id) # args.keys(), ags.values() 
+    history.append( log )
+    return _func(**args), history
+
+def _add(x: int, y: int) -> int: 
+  return x + y
+
+def _mul(x: int, y: int) -> int:
+    return x * y
+
+def _id(x: UType) -> UType:
+ return x
+
+Add = partial(Node, _add)
+Mul = partial(Node, _mul)
+# just treat a uniforms like any other edge I guess
+                   
+class Texture: ...
+UType = Union[str, int, float, Texture]
+Uniform = partial(Node, _id)
+Const = Uniform
+class Command:
+ requireChange: bool
+
+class ChangeCommand(Command):
+  '''only run this command if inputs have changed.
+  The python side of things should have been able to figure that out, though, probably....'''
+  requireChange = True 
+
+class AlwaysCommand(Command):
+ requireChange = False
+
+class ShaderBegin(AlwaysCommand): ...
+
+class LoadFile(ChangeCommand):
+ node: Node # /  ID
+ fileName: str
+
+class SetUniform(ChangeCommand):
+ uniform: Node
+
+def shader_0_input(fileName: str, *uniforms) -> Texture: # u_x0: float, u_x1: float, u_x2: float, u_x3: float) -> Texture:
+   # need an id for these commands.
+  cmds = [ SetUniform( u.utype, u.label, u.value, u.id ) for u in uniforms ] # requires access to the node ids
+  cmds += [ LoadFile(fileName) ] 
+  cmds += [ ShaderBegin() ]
+  return cmds
+
+
+# In[123]:
+
+
+xtb: Callable[[int,int],int] = lambda a, b: a*b
+
+
+# In[ ]:
+
+
+
+
+
+# In[124]:
+
+
+xtb.__annotations__
+
+# add._func
+
+
 ** e.g. Haskell
 :PROPERTIES:
 :header-args:haskell: :prologue ":{\n" :epilogue ":}\n"
