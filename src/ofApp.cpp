@@ -1,13 +1,12 @@
 #include "ofApp.h"
+#include <deque>
 
 // #include <filesystem>
-// namespace fs = std::filesystem;
-
 //--------------------------------------------------------------
 void ofApp::setup(){
     
-	ofBackground(0, 0, 0);
-	ofSetVerticalSync(false);
+    ofBackground(0, 0, 0);
+    ofSetVerticalSync(false);
     ofHideCursor();    
     //ofSetFullscreen(1);
     // toggle these for dev mode ?
@@ -43,15 +42,17 @@ void ofApp::setup(){
 
     mixShader.setup();
     mixShader.shaderParams[0] = 0.5;
-    
-    effectShader0.setup();
-    effectShader1.setup();
-    effectShader2.setup();
-    effectShader0active = false;
-    effectShader1active = false;
-    effectShader2active = false;
-   
- effectInput = {};
+    vector<Id> tmpIds { "A", "B", "C", "D", "E" };
+    for (auto id : tmpIds) {
+      nodeOrder.push_back(id);
+      conjur shader;
+      shader.setup();
+      Attributes unis {  { {"u_x0", "bully"}, {"u_x1", "bully"}, {"u_x2", "bully"}, {"u_x3", "bully"}}};
+      ofxNode node { unis, id, shader, false};
+      nodes[id] = node;
+      }
+
+    effectInput = {};
     
     in_texture.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
     detour_texture.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
@@ -60,12 +61,17 @@ void ofApp::setup(){
     out_fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
     mix_fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
     fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
-        
+    
     fbo.begin();
         ofClear(0, 0, 0, 0);
     fbo.end();
 }
 
+void ofApp::printStatus() {
+  for (auto& p : nodes) {
+    ofLog( OF_LOG_NOTICE, p.first + "  "  +  p.second.id + "  " +   ofToString(p.second.isActive)); // ofDrawBitmapString("Hello there.", 10, 10);
+ }
+}
 //--------------------------------------------------------------
 void ofApp::update(){
     
@@ -82,27 +88,28 @@ void ofApp::update(){
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-
-    if(strobe == 0){
+  bool drawFrame = !strobe  || ofGetFrameNum() % (strobe == 0);
+  if (drawFrame)
         drawScreen();
-    }
-    else if(ofGetFrameNum() % strobe == 0){
-        drawScreen();
-    }
-
-    out_fbo.draw(0,0,ofGetWidth(), ofGetHeight());
+  out_fbo.draw(0,0,ofGetWidth(), ofGetHeight());
 }
 
 void ofApp::drawScreen(){
-    useShader = effectShader0active || effectShader1active || effectShader2active;
+    for (auto& p : nodes)
+        useShader = useShader || p.second.isActive;
     // if detour mode then only draw effect now if set to input , otherwise draw this in detour meathod
     bool drawEffectShader = useShader && ( !isDetour || effectShaderInput);
     if(drawEffectShader){
         effectInput = {};
         drawCaptureAndPlayers();
-        fbo = applyEffectShaderChain(effectInput);
-         }
-    else{
+        for (auto id : nodeOrder) {
+            if (nodes[id].isActive) {
+                fbo = nodes[id].shader.apply(effectInput);
+                effectInput.insert(effectInput.begin(), fbo.getTexture());
+          }
+       }
+     }
+     else{
         fbo.begin();
         drawCaptureAndPlayers();
         fbo.end();
@@ -130,7 +137,8 @@ ofFbo ofApp::applyEffectShaderChain(vector<ofTexture> effectInput){
         effectInput.insert(effectInput.begin(), fbo.getTexture());
     }
     return fbo;
-}
+  }
+
 
 void ofApp::detourUpdate(){
     fbo.readToPixels(in_frame);
@@ -147,15 +155,15 @@ void ofApp::detourUpdate(){
         vector<ofTexture> effectInput = {mix_texture};
         out_fbo = applyEffectShaderChain(effectInput);
     }
-
-
     else{out_fbo = mix_fbo;}
+
     if(thisDetour.is_recording){
         out_fbo.readToPixels(out_frame);
         thisDetour.checkMemory();
         thisDetour.addFrame(out_frame); 
         }
 }
+
 
 //--------------------------------------------------------------
 
@@ -165,6 +173,7 @@ void ofApp::drawCaptureAndPlayers(){
     drawPlayerIfPlayingOrPaused(bPlayer);
     drawPlayerIfPlayingOrPaused(aPlayer);
     if (capturePreview){
+
         videoGrabber.draw(0,0,ofGetWidth(), ofGetHeight());
         effectInput.insert(effectInput.begin(), videoGrabber.getTexture());
     }
@@ -179,7 +188,7 @@ if (key == 'q'){
         ofExit();
         }
  else if (key == 's') {
-   // printStatus();
+    printStatus();
  }
     }
 
@@ -209,6 +218,7 @@ void ofApp::drawPlayerIfPlayingOrPaused(recurVideoPlayer& player){
   
     if (player.alpha > 0 && ( player.status == "PLAYING" || player.status == "PAUSED" ) ){
         player.draw(0, 0, ofGetWidth(), ofGetHeight());
+
         if(useShader && effectInput.size() < 2){
             effectInput.insert(effectInput.begin(), player.getTexture());
             //ofLog() << "player " << player.name << " is texture " << effectInput.size();
@@ -216,20 +226,13 @@ void ofApp::drawPlayerIfPlayingOrPaused(recurVideoPlayer& player){
     }
 }
 
-// void ofApp::loadShadersFromMsg(u_int idx, ofxOscMessage m) { 
-//   // TODO: use shader array
-//             effectShader0.loadShaderFiles("/home/pi/r_e_c_u_r/Shaders/default.vert", m.getArgAsString(0));
-// }
-
 void ofApp::receiveMessages(){
     while(receiver.hasWaitingMessages()){
         ofxOscMessage m;
         receiver.getNextMessage(m);
         
         ofLog(OF_LOG_NOTICE, "the m (mesage) is " + ofToString(m));
-        // cout << "Your favorite number is " << m << "\n";
-
-        
+        printStatus();
         if(m.getAddress() == "/player/a/load"){
             aPlayer.loadPlayer(m.getArgAsString(0), m.getArgAsFloat(1), m.getArgAsFloat(2), m.getArgAsFloat(3) );
             updateStatus(aPlayer, "LOADING");
@@ -469,7 +472,8 @@ void ofApp::receiveMessages(){
         else if(m.getAddress() == "/detour/set_delay_mode"){
                 thisDetour.is_delay = m.getArgAsBool(0);
              }
-        else if(m.getAddress() == "/detour/set_mix"){
+        
+else if(m.getAddress() == "/detour/set_mix"){
                 thisDetour.mix_position = m.getArgAsFloat(0);
                 mixShader.shaderParams[0] = thisDetour.mix_position;
              }
@@ -491,8 +495,40 @@ void ofApp::receiveMessages(){
             ofLog(OF_LOG_NOTICE, "should exit now" );
             ofExit();
         }
+        else if(m.getAddress() == "/graph"){
+          Id id = m.getArgAsString(1);
+          // ofxNode node = nodes[id];
+          actionMap actions = { { { "LOAD_FILE", LOAD_FILE}, 
+                                  {"UPDATE_UNIFORM", UPDATE_UNIFORM},
+                                  {"TOGGLE_ACTIVE", TOGGLE_ACTIVE} } };
+          Action cmd = actions[m.getArgAsString(0)];
+  switch (cmd) {
+    case LOAD_FILE:
+     nodes[id].shader.loadShaderFiles(m.getArgAsString(2), m.getArgAsString(3));
+     nodes[id].attr["vertFile"] = m.getArgAsString(2);
+     nodes[id].attr["fragFile"] = m.getArgAsString(3);
+     ofLog(OF_LOG_NOTICE, "shader id " + ofToString(id) + " loaded " + m.getArgAsString(2) + " and " + m.getArgAsString(3));
+     break;
+  case UPDATE_UNIFORM:
+    nodes[id].shader.shaderParams[ m.getArgAsInt(2) ] = m.getArgAsFloat(3);
+    ofLog(OF_LOG_NOTICE, "params for " + ofToString(nodes[id].id) + " loaded " +ofToString( m.getArgAsInt(2) ) + " to " + ofToString( m.getArgAsFloat(3)) + "of node id " + id );
+    // node.shader.shaderParams[ m.getArgAsString(2) ] = m.getArgAsFloat(1);
+    break;
+  case TOGGLE_ACTIVE:
+    nodes[id].isActive =  m.getArgAsBool(2); //  !nodes[id].isActive;
+    // ofLog(OF_LOG_NOTICE, ofToString(node.id) + " it's active");
+    
+    break;
+  default:
+    ofLog(OF_LOG_NOTICE, "the m (mesage) is " + ofToString(m));
+    throw std::runtime_error("Bad message");
+ }
+
+        }
+
+        }
+
     }
-}
 
 
 
@@ -565,37 +601,3 @@ void ofApp::sendDetourMessage(int position, int start, int end, int size, float 
     sender.sendMessage(response, true);
 }
 
-// void ofApp::printStatus() {
-// 
-//   
-//   ofLog(   "   framerate                   " + ofToString(              framerate ));
-//   ofLog( " receiver                      " +   ofToString(        receiver ));
-//   ofLog( "     hasCapture                    " + ofToString(         hasCapture ));
-//   ofLog( "   captureType              " +      ofToString(    captureType ));
-//   ofLog( " capturePreview           " +        ofToString(  capturePreview ));
-//   ofLog( "   captureRecord            " +      ofToString(    captureRecord ));
-//   ofLog( " useShader                " +        ofToString(  useShader ));
-//   ofLog( "   lastTime                 " +      ofToString(    lastTime ));
-//     ofLog( " thisDetour               " +      ofToString(    thisDetour ));
-//     ofLog( "   thisDetour.is_delay      " +    ofToString(      thisDetour.is_delay ));
-//     ofLog( " isDetour                 " +      ofToString(    isDetour ));
-//     ofLog( "   effectShaderInput        " +    ofToString(      effectShaderInput ));
-//     ofLog( " isFeedback               " +      ofToString(    isFeedback ));
-//     ofLog( "   strobe                   " +    ofToString(      strobe ));
-//     ofLog( " mixShader                " +      ofToString(    mixShader ));
-//     ofLog( "   mixShader.shaderParams   " +    ofToString(      mixShader.shaderParams ));
-//     ofLog( " effectShader0            " +      ofToString(    effectShader0 ));
-//     ofLog( "   effectShader1            " +    ofToString(      effectShader1 ));
-//     ofLog( " effectShader2            " +      ofToString(    effectShader2 ));
-//     ofLog( "   effectShader0active      " +    ofToString(      effectShader0active ));
-//     ofLog( " effectShader1active      " +      ofToString(    effectShader1active ));
-//     ofLog( "   effectShader2active      " +    ofToString(      effectShader2active ));
-//     ofLog( " effectInput              " +      ofToString(    effectInput  ));
-//     ofLog( "   in_texture               " +    ofToString(      in_texture ));
-//     ofLog( " detour_texture           " +      ofToString(    detour_texture ));
-//     ofLog( "   in_fbo                   " +    ofToString(      in_fbo ));
-//     ofLog( " out_fbo                  " +      ofToString(    out_fbo ));
-//     ofLog( "   mix_fbo                  " +    ofToString(      mix_fbo ));
-//     ofLog( " fbo                      " +      ofToString(    fbo ));
-//         
-// }

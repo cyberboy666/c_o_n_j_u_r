@@ -11,14 +11,65 @@
 #include "detour.h"
 #include "conjur.h"
 #include "recurVideoPlayer.h"
+#include <unordered_map>
+#define UNIFORM_F_INIT 0.0
+// #include "ofxGui.h"
+// struct fxNode {
+//   conjur shader;
+//   fxNode next;
+//   bool isActive ;
+//   vector<fxNode> toVector();
+//   void setup();
+//   
+// }
+typedef string Id; 
+typedef unordered_map<Id, string> Attributes;
+// typedef unordered_map<Id, Command> Nodemap;
+class ofxNode {
+
+public: 
+  Attributes attr;
+  Id id;
+  conjur shader;
+  bool isActive;
+  ofxNode(Attributes att, Id i, conjur s, bool isa) {
+    attr = att;
+    id = i;
+    shader = s;
+    isActive = isa;
+  }
+  ofxNode() {
+    conjur shader;
+    attr = {{}};
+    id = "NOID";
+    shader = shader;
+    isActive = true;
+  }
+};
+enum Action {LOAD_FILE, NOTHING, UPDATE_UNIFORM, ROTATE, TOGGLE_ACTIVE };
+typedef unordered_map<Id, ofxNode> Nodemap;
+typedef unordered_map<Id, Action> actionMap;
+// typedef unordered_map<Id, string> OSCmap;
+
+
+class Command {
+public:
+  Action commandType;
+  Id sourceId; // allows us to lookup the shader/whatever to use
+  int arg1; // use ints again to look up shader files, for exmaple
+  int arg2; // use ints again to look up shader files, for exmaple
+
+};
 
 class ofApp : public ofBaseApp{
 	public:
+                Nodemap nodes;
 		void setup();
 		void update();
 		void draw();
 		void drawScreen();
 		void keyPressed(int key);
+  void printStatus();
         void receiveMessages();
         void setFrameSizeFromFile();
         void checkPlayerStatuses();
@@ -31,6 +82,7 @@ class ofApp : public ofBaseApp{
         void updateStatus(recurVideoPlayer& player, string statusValue);
         void setupCapture(string captureType);
 
+    vector<Id> nodeOrder;
     ofxOscReceiver receiver;
     ofxOscSender sender;
 
@@ -70,6 +122,9 @@ class ofApp : public ofBaseApp{
     bool effectShader0active;
     bool effectShader1active;
     bool effectShader2active;
+
+  //    vector<fxNode> orderedFX;
+  //    vector<vxNode> fxTree;
     vector<ofTexture> effectInput;
     ofPixels in_frame;
     ofPixels detour_frame;
