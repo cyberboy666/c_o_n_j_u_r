@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include "ofxAssimpModelLoader.h"
 #include "ofxJSON.h"
+#include "ofxAutoReloadedShader.h"
 // #inlucde "ofxAutoReloadShader"
 #define UNIFORM_F_INIT 0.0
 // #include "ofxGui.h"
@@ -101,19 +102,19 @@ public:
 class ofApp : public ofBaseApp{
 	public:
                 Nodemap nodes;
-                opt3D scene;
 		void setup();
 		void update();
 		void draw();
 		void drawScreen();
 		void keyPressed(int key);
+  void setup3D(); 
   ofTexture modelTex; 
   string sceneConfigPath;
   ofxJSONElement sceneConfig;
   ofMesh mesh;
   ofxAssimpModelLoader model;
   ofEasyCam camera;
-  conjur modelShader;
+  ofxAutoReloadedShader modelShader;
   bool use3D;
   bool modelWireframe;
   vector<float> modelUniforms;
@@ -137,17 +138,15 @@ class ofApp : public ofBaseApp{
     ofxOscSender sender;
   array<int, 3>  sceneTranslation;
   array<int, 3>  cameraPosition;
+  float cameraDistance;
   array<float, 3>  ofRotation;
+  array<int, 3>  lightColor;
+  ofLight light;
+  bool lightTiedToCamera;
+  bool lightOn;
   float ofRotationAngle;
     ofGLESWindowSettings   settings;
     ofxXmlSettings xmlSettings;
-
-    conjur effectShader0;
-    conjur effectShader1;
-    conjur effectShader2;
-    bool effectShader0active;
-    bool effectShader1active;
-    bool effectShader2active;
 
     ofFbo fbo;
     

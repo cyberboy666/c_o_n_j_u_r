@@ -1,8 +1,37 @@
 #include "ofApp.h"
 #include <deque>
-#define IS3D true
 // #include <filesystem>
 //--------------------------------------------------------------
+void ofApp::setup3D() {
+      
+      bool parsingSuccessful = sceneConfig.open(sceneConfigPath);
+      if (parsingSuccessful) {
+         use3D = sceneConfig["enable"].asBool();
+         if (!use3D) return;
+         ofLogNotice("ofApp::setup") << sceneConfig.getRawString();
+         model.loadModel(sceneConfig["model"].asString());
+         ofLoadImage(modelTex, sceneConfig["textureImage"].asString());
+         mesh = model.getMesh(0);
+         for (int i = 0; i < 3; i++) {
+           ofLog(OF_LOG_NOTICE, "cam " + ofToString(i));
+            cameraPosition[i] =  sceneConfig["camera"]["position"][i].asInt();
+           ofLog(OF_LOG_NOTICE, "transmod " + ofToString(i));
+            sceneTranslation[i] =  sceneConfig["ofTranslationMod"][i].asInt();
+           ofLog(OF_LOG_NOTICE, "rotate " + ofToString(i));
+            ofRotation[i] = sceneConfig["ofRotate"][i].asInt(); // { 0, 1, 0 };
+           ofLog(OF_LOG_NOTICE, "lightcolor " + ofToString(i));
+            lightColor[i] = sceneConfig["light"]["color"][i].asInt();
+         }
+         cameraDistance = sceneConfig["camera"]["distance"].asFloat();
+         camera.setDistance(cameraDistance);
+         ofRotationAngle = sceneConfig["ofRotationAngle"].asFloat();
+         modelShader.load(sceneConfig["vertShader"].asString(), sceneConfig["fragShader"].asString());
+         lightOn = sceneConfig["light"]["on"].asBool();
+         lightTiedToCamera = sceneConfig["light"]["tiedToCamera"].asBool();
+
+
+}
+}
 void ofApp::setup(){
     
     ofBackground(0, 0, 0);
@@ -72,7 +101,7 @@ void ofApp::setup(){
     mix_fbo.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
 
     ofFboSettings settings;
-    settings.internalformat = GL_RGB;
+    settings.internalformat = GL_RGB32F; // FGL_RGB;
     settings.width = ofGetWidth();
     settings.height = ofGetHeight();
     settings.useDepth = true;
@@ -85,29 +114,10 @@ void ofApp::setup(){
     fbo.end();
 
     // 3d setup
-    sceneConfigFilePath = "3D/scene.json";
-    if (use3D)
-        setup3D()
-    }
-
-void setup3D() {
-      sceneConfig.open(sceneConfigFilePath);
-      bool parsingSuccessful = sceneConfig.open(file);
-      if (parsingSuccessful) {
-         ofLogNotice("ofApp::setup") << sceneConfig.getRawString();
-         model.loadModel(conf["model"].asString());
-         ofLoadImage(modelTex, conf["textureImage"].asString())
-         mesh = model.getMesh(0);
-         int cx = conf["camera"]["position"][0].asInt();
-         int cy = conf["camera"]["position"][1].asInt();
-         int cz = conf["camera"]["position"][2].asInt();
-         camera.setPostion(cx, cy, cz);
-         ofRotation = conf["ofRotate"]; // { 0, 1, 0 };
-         sceneTranslation = conf["ofTranslationMod"];
-         ofRotationAngle = conf["ofRotationAngle"].asFloat();
-         modelShader.load(conf["vertShader"].asString(), conf["fragShader"].asString());
-
+    sceneConfigPath = "3D/scene.json";
+    setup3D();
 }
+
 void ofApp::printStatus() {
   for (auto& p : nodes) {
     ofLog( OF_LOG_NOTICE, p.first + "  "  +  p.second.id + "  " +   ofToString(p.second.isActive)); // ofDrawBitmapString("Hello there.", 10, 10);
@@ -135,25 +145,45 @@ void ofApp::draw(){
   out_fbo.draw(0,0,ofGetWidth(), ofGetHeight());
 }
 
+// need this for 3D stuff too so pulled from conjur
+//float ofApp::getTime(){
+//    float currentElapsedTime = ofGetElapsedTimef();
+//    float diff = lastElapsedTime - currentElapsedTime;
+//    time = time + (speed*diff);
+//    lastElapsedTime = currentElapsedTime;
+//    return time;    
+//}
 void ofApp::drawScreen(){
+  // should probably get time once and then pass it around
+  float utime = effectShader0.getTime();
   if (use3D) {
     effectShaderInput = true;
     ofEnableDepthTest();	//Enable z-buffering
+    ofBackgroundGradient( ofColor( 255 ), ofColor( 128 ) );
     // ofBackgroundGradient( ofColor( 255 ), ofColor( 128 ) );
       ofPushMatrix();	//Store the coordinate system
       //Move the coordinate center to screen's center
       // trans.x, trans.y, trans.z
 
-      ofTranslate( ofGetWidth()*ofTranslation[0],  ofGetHeight()*ofTranslation[1], 1*ofTranslation[2] );
-      camera.begin();
-      modelShader.begin()
-      camera.setPostion(cameraPosition[0], cameraPosition[1], cameraPosition[2]);
+      ofTranslate( ofGetWidth()*sceneTranslation[0],  ofGetHeight()*sceneTranslation[1], 1*sceneTranslation[2] );
+      if (lightTiedToCamera) {
+        camera.begin();
+             if (lightOn) light.enable();
+    } else {
+             if (lightOn) light.enable();
+        camera.begin();
+          }
+          
+      modelShader.begin();
+      camera.setDistance(cameraDistance); // cameraPosition[0], cameraPosition[1], cameraPosition[2]);
      // rotate with vert shader for now
-     modelShader.setUniform1f("u_time", time);
+      modelShader.setUniform1f("u_time", utime);
      modelShader.setUniformTexture( "u_tex0", modelTex, 0 );
-      for( int i = 0; i < modelUniforms.size(); i++ ){
-        shader.setUniform1f("u_x" + ofToString(i), modelUniforms[i]);        
+      for( int i = 0; i < modelUniforms.size(); i++ ) {
+        modelShader.setUniform1f("u_x" + ofToString(i), modelUniforms[i]);        
         }
+      if (lightOn) modelShader.setUniform3f( "lightColor", float(lightColor[0]) / 255.0f, float(lightColor[1]) / 255.0f, float(lightColor[2]) / 255.0f );
+
       //     for (auto& p: modelUniforms) {
       //       modelShader.setUniform1f(p.first, p.second);
       //     }
@@ -161,6 +191,7 @@ void ofApp::drawScreen(){
     else {mesh.drawWireframe();}
 
     modelShader.end();	//Disable the shader
+    if (lightOn) light.disable();
     camera.end();
     
     ofPopMatrix();	//Restore the coordinate system
@@ -174,7 +205,7 @@ void ofApp::drawScreen(){
     if(drawEffectShader){
       effectInput = {};
       if (use3D) {
-        effectInput.insert(effectInput.begin(), fbo.getTexture())
+        effectInput.insert(effectInput.begin(), fbo.getTexture());
           }
         drawCaptureAndPlayers();
         fbo = applyEffectShaderChain(effectInput);
@@ -241,7 +272,6 @@ void ofApp::detourUpdate(){
         }
 }
 
-
 //--------------------------------------------------------------
 
 void ofApp::drawCaptureAndPlayers(){
@@ -265,7 +295,7 @@ if (key == 'q'){
         ofExit();
         }
  else if (key == 's') {
-    printStatus();
+   // printStatus();
  }
     }
 
@@ -309,7 +339,7 @@ void ofApp::receiveMessages(){
         receiver.getNextMessage(m);
         
         ofLog(OF_LOG_NOTICE, "the m (mesage) is " + ofToString(m));
-        printStatus();
+        // printStatus();
         if(m.getAddress() == "/player/a/load"){
             aPlayer.loadPlayer(m.getArgAsString(0), m.getArgAsFloat(1), m.getArgAsFloat(2), m.getArgAsFloat(3) );
             updateStatus(aPlayer, "LOADING");
