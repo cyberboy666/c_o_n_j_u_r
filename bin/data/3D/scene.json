@@ -1,5 +1,5 @@
 { 
-    "enable" : false,
+    "enable" : true,
     "textureImage" : "3D/pikachu.png",
     "vertShader" : "3D/base.vert",
     "fragShader" : "3D/base.frag",
@@ -13,7 +13,9 @@
         "tiedToCamera" : true, 
         "color" : [255, 255, 255]
                },
-    "ofTranslationMod"  : [0, 1, 0],
+    "ofTranslationMod"  : [0, 0.5, 0],
+    "ofTrasnslateZero" : false,
     "ofRotate" : [ 0, 1, 0 ],
+    "ofScale"  : [50, 50, 50],
     "ofRotationAngle" : 10
     }

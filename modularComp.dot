@@ -1,0 +1,72 @@
+digraph G  {
+//    graph [fontsize=10 fontname="Verdana" compound=true];
+//    node [shape=record fontsize=10 fontname="Verdana"];
+    shape=record;
+    compound=true;
+    subgraph cluster_0 {
+        node [style=filled];
+      u_0 [label="/shader/params/u0"] 
+      u_1 [label="/shader/params/u1"] 
+      u_3 [label="/shader/params/u3"]   
+      u_2 [label="/shader/params/u2"];
+      u_swap [label="/shader/swapFile"];
+        label="OSC Stuff (implied elsewhere)"
+        style=dotted;
+    }
+   subgraph cluster_1 {
+       label="3D Scene";
+        node [style=filled];
+      bg [label="background"];
+      camera [label="camera"];
+      light  [label="light",type="unknown"];
+      shape [label="3D Model",shape=cylinder]
+      modelTex [label="etc."]
+        color=blue;
+} 
+ Model3D [label="Something.stl",shape=cylinder];
+ image [label="background.png"];
+ Grayscale [label="grayscale.frag",shape=octagon,style=bold];
+ Blur [label="blur.frag",shape=octagon,style=bold];
+ {light, camera} -> shape [label="target",style=dashed];
+ image [shape=rectangle]
+ image -> bg;     
+ u_3 -> Grayscale [label="more edges=re-use"];
+ u_swap -> Blur [style=dashed,label="otherFile.frag"];
+ u_3 -> Multiply2;
+ u_time [style=filled];
+ u_time -> Multiply2;
+ Modulo4 [label="Modulo4 (x % 4)"];
+ IF [label="IF (A && B): B" ];
+ Multiply [label="Multiply (scale)"];
+ u_time -> Modulo4 -> ToBoolean;
+ {ToBoolean, lightOn} -> IF;
+ IF -> light  [label="toggle on/off"];
+ HypRings -> Grayscale -> LumaKey;
+ u_time -> Sin -> Multiply;
+ ten [label="100.0",color=yellow];
+ ten -> Multiply [style=dashed];
+ Multiply -> RotateX [label="for scaling"];
+ Mirror [label="mirror.frag",shape=octagon,style=bold];
+ HypRings [label="hypnotic_rings.frag",shape=octagon];
+ AudioSource [style="filled"];
+ AudioSource -> BandPassFilter -> { BandLow };
+ AudioSource -> { BandHi, BandMid } [style=dashed];
+ BandLow -> Scale -> Invert -> RotateY;
+ {RotateY, RotateX}  -> camera;
+ Multiply2 -> speed_uniform -> HypRings;
+ { u_0, u_1, u_2 } -> HypRings [label="u_x*"];
+ moreosc [label="OSC (implied elsewhere)",style=filled];
+ unis [label="u_x4,u_x5...(implied elsewhere)"];
+ HypRings -> Blur;
+ moreosc -> unis  -> ModelVert;
+ // ChromaKey -> LumaKey -> DISPLAY;
+ { RotateY, RotateX } -> shape;
+ ChromaKey [label="chromaKey.frag",shape=doubleoctagon];
+ LumaKey [label="lumakey.frag",shape=doubleoctagon];
+ ModelVert [label="example.vert",shape=diamond];
+ ModelFrag [label="example.frag",shape=octagon,style=bold];
+ Model3D -> ModelVert -> ModelFrag -> shape;
+ modelTex -> Mirror [ltail=cluster_1,style=bold,color=blue];
+ DISPLAY [color=red,style="filled,bold",shape=square];
+ {Mirror, Blur} -> ChromaKey -> LumaKey -> DISPLAY;
+}

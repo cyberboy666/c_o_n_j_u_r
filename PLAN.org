@@ -1,21 +1,142 @@
+By Mike Panciera
+
+* 3D scenes
+
+3D is in this conjur fork; it is working but I get weird feedback, I suspect it is from something with the fbo. I think if you resolve that 
+you're left with just some fixes to get it working on the Pi. Users can set up their scene in scene.config and toggle it on/off there.
+Probably there should be an OSC switch to turn 3d mode off, like detour. Getting a user interface for 3D is not something I've thoguht about;
+the idea of using a graph, whether json or graphviz, comes from errogenous tones STRUCUTRE product; once the structure of the graph is determined 
+user interaction is greatly simplified, and you could even render the object and some shaders without ever touching the 3d side; maybe hotkey some other models;
+then you use vertex uniforms as much as you can to effect 3D space, which recur already supports. 
+base.frag and base.vert work well with pikachu, who I got from https://github.com/Eoey1/OF-Shader-Exam
+This guy has very good practices and examples https://github.com/73-ch/vjSystem
+
+* Shader Extension Notes
+ - shaderActive needs to be changed. 
+    - we don't need to check if it's active b/c it's either in the nodemap or it isn't
+ - osc addresses need to be fixed (use an action map or a visitor, and generate addresses?
+    or assume that the addresses are of the form
+    /{command}/{arg1ID}/{arg2ID}  w/ optional float values
+ - fix apply input chain (might require ofxAddons changes) [[file:~/of_v0.11.0_osx_release/apps/recur/c_o_n_j_u_r/src/ofApp.cpp::ofFbo%20ofApp::applyEffectShaderChain(vector<ofTexture>%20effectInput){][shaderChain]]
+     ofFbo ofApp::applyEffectShaderChain(vector<ofTexture> effectInput){
+ - then test with mac OSC :)
+
+You could use the following addon, if it compiles, to abstract out shader composition:
+https://github.com/patriciogonzalezvivo/ofxFX
+
+I got 1-input shader chaining to work in my fork ( got 4 in a row to work at least). I just did this by putting them in a vector, mainly. That might be in an old commit or commented out.
+2-input shaders need to be told how to behave with some tree/graph representaiton, see [[Schema]]
+
+Oh there is also stuff for cross-platform shaders in this repo using glsl headers works
+
 * Schema
-** Day1
+** Graphviz
+Use graphviz dot files to specify complex modulation setups. 
+If you don't want to work with dot files directly, you can convert them to json easily. 
+But Graphviz is very well suited  for 'live coding' applications in this space; it's a functional language supported by text editors, syntax highlighting, many libraries.
+It is very concise, and it can express data flow and operations very well. It's also easy to work with, because the nodes and edges are just dictionaries (hashmaps) after 
+you parse them. 
+you could use labels for the file names or layer numbers or just use the IDs (which is what is actually written down)
+the named shaders would match up with those layers/slots and/or file names
+you can also specify stuff in the edges between nodes
+if you use the write editor the actual graph will render as a PNG in the same window (as with emacs org-babel) 
+in the following example, we use audio input attenuated by an OSC parameter, send it multiple places, every six seconds take a screenshot with detour
+we also take a snapshop with detour every six seconds and then pipe that back into our pipeline
+
+#+BEGIN_SRC dot :file with3D.png
+digraph LittleExample {
+ OSC -> u_x1 -> Mul2;
+ Audio -> LowPassFilter -> Mul2 -> u_x0;
+ u_x0 -> { GenShader, RotationX, ModelVertShader};
+ Model3D -> VertShader -> ModelFrag -> blur;
+ {blur, playerA} -> chromaKey;
+ LowPassfilter -> u_x9 -> chromaKey;
+ OSC[label="/shaders/param/1"];
+ PNG [filename="foobar.png"];
+ time -> Modulo6 -> detourTrigger -> PNG;  //
+ PNG -> Model3D [label="e.g. as texture"]; // or could go in a s
+ LowPassFilter -> BackgroundHue;
+ RotationX -> Camera;
+ {Camera, Model3D, BackgroundHue} -> Scene3D;
+}
+#+END_SRC
+
+#+RESULTS:
+[[file:state.png]]
+
+You can use the interpreter pattern or the visitor pattern, and have python send out the computed state (i.e., the new uniform, rotation values, and file names, etc.)
+to c_o_n_j_u_r; conjur already has a lot of hooks, and you can add more easily if you use the ofxOSCPubSub addon, code for that below
+You can do the mathematical computations, parse audio data, etc. on the python side, and have the side-effects rendedered on the conjur side.
+
+It breaks down very simply as function composition/data flow, and can be modelled simply; if you consider that data is constantly flowing, the graph just represents a call stack.
+so you visit each node (order doesn't actually matter; you just need to start at the 'display' node (the terminal node might be missed otherwise)
+
+the following code assumes that you've gone through and given the edges meaningful names, matched up input/types so that you can guess what the user intended, and so on.
+the incoming edges are the 'dependencies' that need to be resolved in order for the current node ot resolve itself and produces its own output (and render). 
+So you resolve dependencies recursively, storing the result in a dictionary. (for example, you've resolved the uniform, storing it in 'u_x0')
+#+BEGIN_SRC python
+def recursiveVisist(node: Node) -> dict:
+   attributes = {}
+   for edgeName, dependency in node.incomingEdges.items():
+      # if an attribute hasn't changed, don't update it so you don't send the osc
+      if self.attributes
+      newAttributes[edgeName = recursiveVisit(dependency)
+   #newAttributes.update(self.attributes)
+   result = self.compute(**newAttributes)
+   self.attributes = newAttributes
+   return result
+
+recursiveVisist( terminalDisplayNode )
+
+# i.e.
+class Node(NamedTuple):
+  func: Callable
+  id: str
+  def compute(self, **kwargs):
+    func(**kwargs)
+
+  def recursiveVisist().... # etc.
+
+
+class Shader(Node):
+   # earlier:
+    edges = {'uniforms' :  [0,  0.0] } # etc. u_x1, u_x2, u_x3,
+  # def compute(self, u_x0, u_x1, u_x2, u_x3, tex0=None, tex1=None):
+  def compute(self, uniforms, tex0=None, tex1=None):
+    for i, value in enumerate(uniforms):
+      sendosc( f"/shader/{self.id}/{i}", value)
+    # a shader doesn't actually have a result, so just indicate that it can be used  as input texture
+    return Texture(self.id)
+
+class Add(Node):
+  def compute(self, a, b):
+    return a + b    
+# OR
+from functools import partial
+import operator
+
+Add = partial(Node, operator.add)
+
+# below are root nodes, they have no incoming attributes
+class Data(Node):
+  def __init__(self, data):
+    self.data = data
+  def compute(self):
+    return data
+
+class OSCListener(Node):
+  address: str  # with NamedTuple/dataclass, don't need an explicit __init__
+  inputype: int
+  def compute():
+    # listen for osc...
+ 
+#+END_SRC
+** More Notes
  - nodes get `rendered` each cycle  [or just commands? / bindings / extractions? ]
  - A bind of effect a to effect b is a combination of an extraction and a source
  - how do we avoid re-rendering the graph every tick?
  - put commands in a map by their offset so can do the following src block
  - look for the interpreter pattern in java/c++ b/c that's what we're doing. 
-#+BEGIN_SRC cpp
-unordered_map<int, Command> byTicks;
-vector<Command> thisCycle; //  = byTicks [ getTime() 
-int clock;  // `time` after transformations
-for (auto& p : byTicks) {
- // filter by key
- // note that we have already sorted our commands and created a data structure
- // which propagates the ticks . . . the graph is small so space is cheap
- if ( time % p.first ) thisCycle.push_back(p.second);
-}
-#+END_SRC
 
 Note that a clock-trigger is achieved by creating time as source :: IO Float and applying modulo after its extraction
 Note that the type of NOT :: Int -> Int # and may be a special case of MUL
@@ -33,8 +154,6 @@ class Adder {
 }
 #+END_SRC 
 
-#+BEGIN_SRC cpp
-#+END_SRC
 #+BEGIN_SRC dot :file state.png
 digraph StateExample {
  LastState -> Adder [bind=X]
@@ -44,281 +163,88 @@ digraph StateExample {
 }
 #+END_SRC
 
-#+RESULTS:
-[[file:state.png]]
- 
-#+BEGIN_SRC dot :file foo.png
+#+BEGIN_SRC dot :file modularComplex.png
 digraph G  {
- // SourceTime -> Value -> Extract etc.
- SourceTime -> u_time
- u_tick [type=bool, default=false]
- SourceTime -> Modulo4 ->  NOT -> u_tick 
- u_time -> Shader1
+//    graph [fontsize=10 fontname="Verdana" compound=true];
+//    node [shape=record fontsize=10 fontname="Verdana"];
+    shape=record;
+    compound=true;
+    subgraph cluster_0 {
+        node [style=filled];
+      u_0 [label="/shader/params/u0"] 
+      u_1 [label="/shader/params/u1"] 
+      u_3 [label="/shader/params/u3"]   
+      u_2 [label="/shader/params/u2"];
+      u_swap [label="/shader/swapFile"];
+        label="OSC Stuff (implied elsewhere)"
+        style=dotted;
+    }
+   subgraph cluster_1 {
+       label="3D Scene";
+        node [style=filled];
+      bg [label="background"];
+      camera [label="camera"];
+      light  [label="light",type="unknown"];
+      shape [label="3D Model",shape=cylinder]
+      modelTex [label="etc."]
+        color=blue;
+} 
+ Model3D [label="Something.stl",shape=cylinder];
+ image [label="background.png"];
+ Grayscale [label="grayscale.frag",shape=octagon,style=bold];
+ Blur [label="blur.frag",shape=octagon,style=bold];
+ {light, camera} -> shape [label="target",style=dashed];
+ image [shape=rectangle]
+ image -> bg;     
+ u_3 -> Grayscale [label="more edges=re-use"];
+ u_swap -> Blur [style=dashed,label="otherFile.frag"];
+ u_3 -> Multiply2;
+ u_time [style=filled];
+ u_time -> Multiply2;
+ Modulo4 [label="Modulo4 (x % 4)"];
+ IF [label="IF (A && B): B" ];
+ Multiply [label="Multiply (scale)"];
+ u_time -> Modulo4 -> ToBoolean;
+ {ToBoolean, lightOn} -> IF;
+ IF -> light  [label="toggle on/off"];
+ HypRings -> Grayscale -> LumaKey;
+ u_time -> Sin -> Multiply;
+ ten [label="100.0",color=yellow];
+ ten -> Multiply [style=dashed];
+ Multiply -> RotateX [label="for scaling"];
+ Mirror [label="mirror.frag",shape=octagon,style=bold];
+ HypRings [label="hypnotic_rings.frag",shape=octagon];
+ AudioSource [style="filled"];
+ AudioSource -> BandPassFilter -> { BandLow };
+ AudioSource -> { BandHi, BandMid } [style=dashed];
+ BandLow -> Scale -> Invert -> RotateY;
+ {RotateY, RotateX}  -> camera;
+ Multiply2 -> speed_uniform -> HypRings;
+ { u_0, u_1, u_2 } -> HypRings [label="u_x*"];
+ moreosc [label="OSC (implied elsewhere)",style=filled];
+ unis [label="u_x4,u_x5...(implied elsewhere)"];
+ HypRings -> Blur;
+ moreosc -> unis  -> ModelVert;
+ // ChromaKey -> LumaKey -> DISPLAY;
+ { RotateY, RotateX } -> shape;
+ ChromaKey [label="chromaKey.frag",shape=doubleoctagon];
+ LumaKey [label="lumakey.frag",shape=doubleoctagon];
+ ModelVert [label="example.vert",shape=diamond];
+ ModelFrag [label="example.frag",shape=octagon,style=bold];
+ Model3D -> ModelVert -> ModelFrag -> shape;
+ modelTex -> Mirror [ltail=cluster_1,style=bold,color=blue];
+ DISPLAY [color=red,style="filled,bold",shape=square];
+ {Mirror, Blur} -> ChromaKey -> LumaKey -> DISPLAY;
 }
 #+END_SRC
-
 #+RESULTS:
-[[file:foo.png]]
+[[file:modularComplex.png]]
+ 
+
 ** Day2
-#+NAME: 009BD349-7015-44AE-93D5-068599EB9F84
-#+BEGIN_SRC ein-python :session http://127.0.0.1:8888/notebooks/graphs.ipynb :results raw drawer
+#+BEGIN_SRC ein-python 
 if False:
 # def resolve_edges(edges: Edges[T]) -> Tuple[T, History]
-# OSC becomes a special case which overrides apply, I guess--no, it still just has a func!
- class Node[T]:
-
- _func: Callable[[*Node],T]
-   enum: NType
-   edges: Dict[ str, Node[Any] ] # could store edge types here
-   edgeTypes: Dict[ str, NType ] # for dot compilation
- 
-   def apply(self) -> Tuple[T, History]:
-     args, history = {}, []
-     for e, src in edges.items(): # the edge is the label basically
-       t, hist = src.apply()
-       history.append(hist)
-       args[e] = t
-     log = self.__class, args.keys(), ags.values() 
-     history.append( log )
-     return _func(**args), history
- Edges =  Dict[ str, Node[T] ]
- History = Sequence [ Tuple[type, Sequence[ Node[Any] ] ] ]
-
-# Edges = Dict[str, Node]
-  # enum: NType # could just use __classname__
-
-from dataclasses import dataclass
-from typing import Callable, Any, T, Sequence
-from pydantic import BaseModel # for json schemaing etc
-from toolz import dicttoolz as dtz
-from functools import partial 
-NType = Literal[ 'ADD', 'MUL', 'SHADER', 'SCENE', 'MODEL']
-History = Sequence[Tuple[type, Dict[str, str]]
-@dataclass
-class Node:
-  _func: Callable
-  edges: Dict[ str, 'Node' ] # could store edge types here
-  id: str
-  def edgeTypes(self) -> Dict[ str, NType ]:
-    '''  useful for dot compilation'''
-  # TODO: this is a class method;
-  # TODO: please don't use 'return' as an attr lol 
-    return tlz.dissoc( self._func.__annotations__, 'return' )
-
-  def apply(self) -> Tuple[Any, History]:
-    args, history = {}, []
-    for e, src in edges.items(): # the edge is the label basically
-      t, hist = src.apply()
-      history.append(hist)
-      args[e] = t
-    log = self.__class__, dtz.valmap(args, lambda x: x.id) # args.keys(), ags.values() 
-    history.append( log )
-    return _func(**args), history
-
-def _add(x: int, y: int) -> int: 
-  return x + y
-
-
-#class ZeroUniforms: 
-# u_x0: float
-# u_x1: float
-# u_x2: float
-# u_x3: float
-#
-#class OneUniforms(ZeroUniforms):
-# tex0: Texture
-#
-#class OneUniforms(TwoUniforms):
-# tex1: Texture
-
-# class UniformBundle[T]:
-#   uniforms: Sequence[T]
-class UniformBundle[T]:
-  uniforms: Sequence[Uniform]
-# uniforms aren't really optional becuase they get set to defaults
-# def shader_0_input(fileName: str, u_x0: float, u_x1: float, u_x2: float, u_x3: float) -> Texture:
-# the fact that it is a class let's me cheat and store state
-# class Shader(Node):
-#  _func = shader_0_input
-#  _fileName: str
-#  def apply(self) -> Tuple[Any, History]:
-#   if self._fileName != self.edges['fileName'] 
-#     [LoadFile(self, self.edges['fileName'])] + super(self.__class__).apply(self)
-#     # add a command 
-# I keep getting wrapped up in the types and validation i.e. validating the Dot using the types
-# a uniform is actually a node so don't want to do this here
-# prob all this logic goes in the C++! this is just PoC here in python
-
-
-
-class Command:
- requireChange: bool
-class ChangeCommand:
-  '''only run this command if inputs have changed.
-  The python side of things should have been able to figure that out, though, probably....'''
-  requireChange = True 
-class AlwaysCommand:
- requireChange = False
-
-# time, going into a uniform, aquires a new label, that's all
-UType = Union[str, int, float, Texture]
-def _id(x: UType) -> UType:
- return x
-
-Uniform = partial(Node, _id)
-class ShaderBegin(AlwaysCommand): ...
-
-class LoadFile(ChangedCommand):
- node: Node # /  ID
- fileName: str
-
-class SetUniform(ChangeCommand):
- uniform: Node
-
-def shader_0_input(fileName: str, *uniforms) -> Texture: # u_x0: float, u_x1: float, u_x2: float, u_x3: float) -> Texture:
-   # need an id for these commands.
-  cmds = [ SetUniform( u.utype, u.label, u.value, u.id ) for u in uniforms ] # requires access to the node ids
-  cmds += [ LoadFile(fileName) ] 
-  cmds += [ ShaderBegin() ]
-  return cmds
-# have optional edges so just define a bunch of uniforms for Zero and have everybody inherit? IDK 
-# i.e.g u_x0: float, u_x1: float, u_x2: float, u_x3: float) -> Texture:
-
-class Add:
- _func = lambda x, y:  + y
- enum = "ADD"
-
-UType = Literal[ 'float', 'int', 'bool', 'texture' ]
-
-from functools import partial
-Add = patial(Node, _add, "ADD")
-Uniforms = Sequence[Uniform]
-# only execute these commands if their input has changed 
-
-
-  
-class Shift3D(ChangeCommand):
- node: Node
- coords: Tuple[int, int, int]
-
-class Rotate(Shift3D): ...
-class Translate(Shift3D): ...
-class Scale(Shift3D): ...
-#+END_SRC
-
-#+RESULTS: 009BD349-7015-44AE-93D5-068599EB9F84
-:RESULTS:
-[....]
-:END:
-** Python
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[70]:
-
-
-#+BEGIN_SRC ein-python :session http://127.0.0.1:8888/notebooks/new.ipynb :results raw drawer
-from pythonosc import udp_client
-import time
-localhost = "127.0.0.1"
-port = 8000
-
-client = udp_client.SimpleUDPClient(localhost, port)
-# working
-def msg(id, frag_name, U, on=True):
-  vert_shader = 'shaders/shader.vert'
-  msgs = [ ("LOAD_FILE", id, vert_shader, frag_name),
-  ("TOGGLE_ACTIVE", id, on)] + \
-    [("UPDATE_UNIFORM", id, i, U) for i in range(4)]
-
-  for msg in msgs:
-    time.sleep(.1)
-
-    # print(msg)
-    client.send_message("/graph", msg)
-print('okay')
-#+END_SRC
-
-
-# In[108]:
-
-
-# TODO:  fix the keys problem
-
-#+NAME: Clear!
-#+BEGIN_SRC ein-python :session http://127.0.0.1:8888/notebooks/new.ipynb :results silent drawer
-def clear():
-  msg("A", "", .8, False)
-  msg("B", "", .1, False)
-  msg("C", "", .1, False)
-  msg("D", "", .1, False)
-#+END_SRC
-clear()
-
-
-# In[107]:
-
-
-
-#+NAME: 9D698AC8-8621-47A6-8F3F-CE3C6CAA4A7B
-#+BEGIN_SRC ein-python :session http://127.0.0.1:8888/notebooks/new.ipynb :results raw drawer
-for x in range(1):
-  gen_shader = 'shaders/hypnotic_rings.frag'
-  simple_gen = 'RECUR/0-input/squarewaves.frag'
-  kscope = 'shaders/kaleidoscope-failing.frag'
-  invert = 'shaders/invert.frag'
-  mirrorX = 'shaders/mirrorX.frag'
-  mirrorY = 'shaders/mirrorY.frag'
-  blend = 'shaders/blend.frag'
-  client.send_message("/shader/start", True)
-  msg("A", simple_gen, .8)
-#  msg("B", mirrorX, .5)
-#  msg("C", mirrorY, .1)
-  # msg("D", mirror, .1)
-## msg("C", 'shadres/invert.frag' .5)
-  print('sent')
-  # time.sleep(6)
-print('done.')
-#+END_SRC
-
-
-# In[111]:
-
-
-clear()
-msg("A", simple_gen, .8)
-msg("B", mirrorX, .8)
-msg("C", blend, .8)
-#msg("C", mirrorY, .1)
-
-
-# In[112]:
-
-
-import typing
-
-
-# In[114]:
-
-
-def add(x: int, y: float) -> str:
-    return 'bar'
-
-
-# In[135]:
-
-
-
-Const = Uniform
-
-Add('a1', Mul('m1', Const('c1', 2), Const('c2', 4)), Const('c3', 3))
-
-
-# In[136]:
-
-
-s = set()
-
 
 # In[133]:
 
@@ -369,6 +295,166 @@ class Texture: ...
 UType = Union[str, int, float, Texture]
 Uniform = partial(Node, _id)
 Const = Uniform
+#+END_SRC
+
+
+you could use json schema for the OSC, generating it from pydantic automatically
+pydantic fields let you specify min & max, regular expressions, etc if you want
+
+#+BEGIN_SRC python
+import pydantic
+
+class OSCSchema(pydantic.BaseModel):
+  shader0file: str
+  shader: Shader
+#+END_SRC
+
+ use ofxOSCPubSub to make OSC easy to watch
+#+BEGIN_SRC cpp
+ofxSubscribeOsc(ADDR, SUBPORT, "/3D/lightOn", lightOn);
+ofxSubscribeOsc(ADDR, SUBPORT, "/3D/camera/distance", &camera.getPosition());
+ofxSubscribeOsc(ADDR, SUBPORT, "/3D/scene/translation", sceneTranslation);
+ 
+ for (int i = 0; i < 6; i++) {
+   shaderUniformsF[ UNIFORM_PREFIX_FLOAT + ofToString(i) ] = 0;
+     }
+ for (int i = 0; i < 2; i++) {
+   shaderUniformsB[ UNIFORM_PREFIX_BOOL + ofToString(i) ] = false;
+     }
+ string EMPTY = "UNINITIALIZED";
+ string uname;
+ for (int i = 0; i < 2; i++) {
+   uname = UNIFORM_PREFIX_TEXTURE + ofToString(i);
+   shaderUniformsTexIds[ uname ] = EMPTY;
+   ofxSubscribeOsc(HOST, "/3D/shaderGraphExample/onlyOneShader/" + uname, [=](const string srcID)) {
+        shaderUniformsTexIds[ uname ] = srcID;
+     }
+  }
+ for (auto& p : shaderUniformsF ) {
+   addr = "/3D/model/" + "frag" + "/" + p.first;
+   // if we use the key, the types will still work out in the end
+   ofxSubscribeOsc(HOST, addr, [=](const float x) {
+         shaderUniformsF[p.first] = x;
+         }
+fxSubscribeOsc(HOST, "/3D/cam/position", [=](const glm::vec3 pos) {
+   camera.setPosition(pos); // camera.lookAt(lookat);
+
+#+END_SRC
+
+Node attributes are actually 'Source Nodes' within their larger node (subgraph)
+ Note: a const is different b/c it doesn't have to be recursively rendered
+ 'output' is just another thing to be extracted; it is the result of a side-effect of the container/subgraph (larger effects node)
+ however, you might consider extracing output as monadic; it is different from a node passing on its values;
+ though, consider this: any `Source` may have a monadic computation somewhere in its dependency trace. 
+ Addition is an example of one such 'side-effect'
+
+* More Python Implementation Stuff
+** Compute Nodes
+ etc. see `dir(operator)`
+#+BEGIN_SRC python
+import math
+import operator
+
+EMPTY = None    
+Add = partial(Node, _add)
+Mul = partial(Node, _mul)
+Abs = partial(Node, abs)
+Const = partial(Conster, None) # just store a value
+Negate = partial(muler, a=const(_c=-1))
+Mod = partial(Node, operator.mod)
+Sin = partial(Node, math.sin)
+Pair = partial(Node, lambda a,b: (a,b))
+And = parital(Node, operator.and_)
+Or = parital(Node, operator.or_)
+IfA = partial(Node, lambda a, b: a if (a and b) else EMPTY
+IfB = partial(Node, lambda a, b: b if (a and b) else EMPTY
+Sub = partial(Node, operator.sub)
+Random = partial(Node, random.random) # random float between 0 and 1
+#
+# OPERATORNODES = Add, Mul, Abs, Const, Negate, Mod, Sin, Pair, First, Or
+
+def _clamp(start, end, a):
+    return min(max(start, a), end)
+    
+def _smoothstep(start, end, a):
+    t = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+    return t * t * (3.0 - 2.0 * t);
+def _mix(start, end, a):
+    start*(1.0 - a) + (end * a)
+Calmp  = partial(Node, _clamp) # etc.
+
+#Scale100 = partial(muler, _id='scale100', a=const(_c=100))
+First = partial(Node, lambda a: a[0])
+Second = partial(Node, lambda a: a[1])
+
+#+END_SRC
+
+Here is another version of the node implementation
+You can ignore or get rid of all the type annotations
+
+#+BEGIN_SRC python
+from dataclasses import dataclass
+from typing import Callable, Any, T, Sequence, Tuple, Dict, Union
+from typing_extensions import  Literal
+from pydantic import BaseModel # for json schemaing etc
+from toolz import dicttoolz as dtz
+from functools import partial 
+NType = Literal[ 'ADD', 'MUL', 'SHADER', 'SCENE', 'MODEL']
+History = Sequence[Tuple[type, Dict[str, str]]]
+@dataclass
+class Node:
+  _func: Callable
+  id: str
+  edges: Dict[ str, 'Node' ] # could store edge types here
+  def edgeTypes(self) -> Dict[ str, NType ]:
+    '''  useful for dot compilation'''
+  # TODO: this is a class method;
+  # TODO: please don't use 'return' as an attr lol 
+    return tlz.dissoc( self._func.__annotations__, 'return' )
+
+  def apply(self) -> Tuple[Any, History]:
+    args, history = {}, []
+    for e, src in self.edges.items(): # the edge is the label basically
+      t, hist = src.apply()
+      history.append(hist)
+      args[e] = t
+    log = self.__class__, dtz.valmap( lambda x: x.id, self.edges) # args.keys(), ags.values() 
+    history.append( log )
+    return self._func(**args), history
+
+def _add(x: int, y: int) -> int: 
+  return x + y
+
+def _mul(x: int, y: int) -> int:
+    return x * y
+
+class Texture: ...
+UType = Union[str, int, float, Texture]
+def _id(x: UType) -> UType:
+ return x, []
+
+Add = partial(Node, _add)
+Mul = partial(Node, _mul)
+# just treat a uniforms like any other edge I guess
+                   
+Uniform = partial(Node, _id)
+class Const(Node):
+    def __init__(self, id, v):
+        self.id = id
+        self._func = lambda: (v, [])
+        self.edges = {}
+    def apply(self): return self._func()
+    
+
+#+END_SRC
+
+Here is a little 'algebra' of commands to be sent over OSC
+https://github.com/2bbb/ofxPubSubOsc
+not to difficult for the OF side to handle this by storing it in state via hooks when commands come in and then rendering
+as usual on the update() and draw() methods
+#+BEGIN_SRC python
+
+
 class Command:
  requireChange: bool
 
@@ -397,296 +483,89 @@ def shader_0_input(fileName: str, *uniforms) -> Texture: # u_x0: float, u_x1: fl
   return cmds
 
 
-# In[123]:
+class Command:
+ requireChange: bool
+
+class ChangeCommand(Command):
+  '''only run this command if inputs have changed.
+  The python side of things should have been able to figure that out, though, probably....'''
+  requireChange = True 
+
+class AlwaysCommand(Command):
+ requireChange = False
+
+class ShaderBegin(AlwaysCommand): ...
+
+class LoadFile(ChangeCommand):
+ node: Node # /  ID
+ fileName: str
+
+class SetUniform(ChangeCommand):
+ uniform: Node
+
+def shader_0_input(fileName: str, *uniforms) -> Texture: # u_x0: float, u_x1: float, u_x2: float, u_x3: float) -> Texture:
+   # need an id for these commands.
+  cmds = [ SetUniform( u.utype, u.label, u.value, u.id ) for u in uniforms ] # requires access to the node ids
+  cmds += [ LoadFile(fileName) ] 
+  cmds += [ ShaderBegin() ]
+  return cmds
 
 
-xtb: Callable[[int,int],int] = lambda a, b: a*b
-
-
-# In[ ]:
-
-
-
-
-
-# In[124]:
-
-
-xtb.__annotations__
-
-# add._func
-
-
-** e.g. Haskell
-:PROPERTIES:
-:header-args:haskell: :prologue ":{\n" :epilogue ":}\n"
-:END:
-#+begin_src haskell :results output
-:set prompt-cont ""
-#+end_src
-
-#+RESULTS:
-
-#+begin_src haskell :results raw
-pyth5 n =
-  [ (x, y, z)
-  | x <- [1 .. n]
-  , y <- [x .. n]
-  , z <- [y .. n]
-  , x ^ 2 + y ^ 2 == z ^ 2
-  ]
-#+end_src
-
-
-#+begin_src haskell :results raw
-pyth5 5  
-#+end_src
-
-
-
-
-#+BEGIN_SRC haskell 
-data Foo = Bar | Baz | Bill deriving (Show,Eq)
-:t Bar
-:t Bill
-print Bar
-let f x = let y = 3 in
-  y*x
-f 2
 #+END_SRC
 
-#+RESULTS:
-: <interactive>:146:1: error:
-:     Variable not in scope: f :: Integer -> t
-
-#+BEGIN_SRC haskell
-data Label = Output | UF_f1 | UF_f2 | UF_f3  deriving (Show,Eq)
-data Node = Node deriving Show
-data Source = Adder Int Int | Extract Label Node | Mul Int Int deriving (Show)
-print (Adder 3 3)
-#+END_SRC 
-
-Representing as subgrpahs because node attributes are actually 'Source Nodes' within a cluster
- Note: a const is different b/c it doesn't have to be recursively rendered
- 'output' is just another thing to be extracted; it is the result of a side-effect of the container/subgraph (larger effects node)
- however, you might consider extracing output as monadic; it is different from a node passing on its values;
- though, consider this: any `Source` may have a monadic computation somewhere in its dependency trace. 
- Addition is an example of one such 'side-effect'
-
-
-#+BEGIN_SRC dot :file subgraphs.png
-digraph G {
-
-    graph [fontsize=10 fontname="Verdana" compound=true];
-    node [shape=record fontsize=10 fontname="Verdana"];
-
-    subgraph cluster_0 {
-        node [style=filled];
-        "0_tex0" [label=texture] "0_out" [label=output];
-        label = "Pika Model";
-        color=blue;
-    }
-
-    subgraph cluster_1 {
-        node [style=filled];
-        "1_tex0" [label=texture] "1_out" [label=output];
-        label = "1-input Shader";
-        color=blue;
-    }
-
-    subgraph cluster_2 {
-        node [style=filled];
-        // "texture0" "Attr6";
-        "2_tex0" [label=texture] "2_out" [label=output];
-        label = "1-input Shader";
-        color=blue;
-    }
-
-    // Edges between nodes render fine
-    // "output" -> "Attr2";
-    // "Attr2" -> "Attr3";
-    "0_out" -> "1_tex0";
-    "1_out" -> "2_tex0";
-
-}
+Here is an example of loading the above graphviz code into python; no output but it worked fine.
+In my mind you 
+#+BEGIN_SRC python
+from typing import NamedTuple
+import networkx as nx
+# you also need to install pygraphviz for this to work
+dotFile = open('modularComp.dot')
+g = nx.drawing.nx_agraph.read_dot(dotFile)
+dag = g.to_directed()
+sort_iterator = nx.algorithms.dag.topological_sort(g)
+# the below gives a tuple of the nodes's ID (as written in the file) and all of the metadata of the node
+# i.e. label, type, filename, whatever.
+dependency_sorted = [NodeInfo(k, dag.nodes[k]) for k in sort_iterator]
 #+END_SRC
 
-#+RESULTS:
-[[file:subgraphs.png]]
-
-    // Edges that directly connect one shader to another
-//    "output" -> "texture0" [ltail=cluster_0 lhead=cluster_1];
-//    "output" -> "texture0" [ltail=cluster_1 lhead=cluster_2];
-#+BEGIN_SRC haskell
-data Source = Adder Int Int 
- | Extract Label Node
- | Mul Int Int
- | Not Int
- | Const Int
- | Time Int
- | OSC Int
--- a Source is a node with a single value
-type Tick = Int
-data Edge = Edge Label Node Node
--- below describes expansions of the graph sort of 
-data Command = Bind Tick Source Edge
-  | Get Source
-  | Put Int 
--- Const is the bottom; Time is secretly the other bottom
--- 
--- type Edge = Map (Label Source)
-data Node = Node [(Label, Source)] -- i.e. edges. there are no attributes; attributes/defaults are edges with labels. 
--- defaults are Const-source edges.
-type Default a = Bind (Const a) -- partial application?
--- or is it Adder -> Const
--- Const -> 
-get :: (Monad m) => Source -> m Int
-get (Adder x y)   = pure $ x + y 
-get (Const x)     = pure x
-get (Extract l (Node edges)   = get (find (== l))
-visit (Adder x y) = Source (x + y)
-#+END_SRC
-
-#+RESULTS:
-[[file:subgraphs.png]]
+You would want to normalize the node representation; you fill in defaults, match special ids/labels, read in special attributes; you can also check
+the integrity of the graph if you want. You may even want to break nodes into smaller nodes, so that the user can specify a lot implicitly in a single node;
+then on the implementation side you break things down into simplest pieces. Not really needed, but it's interesting that the whole problem space can be represented, more or less,
+with individual nodes with single attributes, which can PUT or GET or perform binary or unary operations.
 
 
+#+BEGIN_SRC python
 
 
-
-* Here
- - shaderActive needs to be changed. 
-    - we don't need to check if it's active b/c it's either in the nodemap or it isn't
- - osc addresses need to be fixed (use an action map or a visitor, and generate addresses?
-    or assume that the addresses are of the form
-    /{command}/{arg1ID}/{arg2ID}  w/ optional float values
- - fix apply input chain (might require ofxAddons changes) [[file:~/of_v0.11.0_osx_release/apps/recur/c_o_n_j_u_r/src/ofApp.cpp::ofFbo%20ofApp::applyEffectShaderChain(vector<ofTexture>%20effectInput){][shaderChain]]
-     ofFbo ofApp::applyEffectShaderChain(vector<ofTexture> effectInput){
- - then test with mac OSC :)
-#+BEGIN_SRC cpp :result raw :includes "<stdio.h>"
-int z = 0;
-int i = 0;
-switch (z) {
-  case 4:
-  i++;
-  break;
-  case 0:
-  i += 99;
-  break;
- }
-printf("%d", i);
-#+END_SRC
-
-#+RESULTS:
-: 99
-
-#+BEGIN_SRC cpp
-// you could generate OSC addresses but this is easier for now
-string cmd = m.getArgAsString(0);
-Id nodeId = m.getArgAsString(1);
-ofxNode node = nodes[nodeId];
-actionMap actions = { { { "LOAD_FILE", LOAD_FILE}, 
-                         {"UPDATE_UNIFORM", UPATE_UNIFORM} } };
-if (cmd == "LOAD_FILE") {
-  dispatchUn(LOAD_FILE, node, m.getArgAsString(2));
-}
-else if (cmd == "UPDATE_UNIFORM") {
-  dispatchUn(UPDATE_UNIFORM, node, m.getArgAsString(2), m.getArgAsFloat(3))
-}
-
-int dispatchUn(Action act, ofxNode node, string arg1, float arg2) {
-int dispatchUn(Action act, ofxNode node, string arg1, string arg2) {
- 
- switch act {
-  case (LOAD_FILE):
-    ofxNode.loadShaderFiles(arg1, arg2);
-    return 0;
-  default:
-    return -1;
-}
-
-}
+to_visit[0]
+Primitives = (bool, str, float)
+MODELEXTS = ('.stl', '.obj') # etc.
+def fix_node(id: str, dotData: dict):
+    label = node['label'].strip()
+    if label.endswith('.vert'):
+        node = VertNodeInfo(filename=label)
+    elif label.endswith('.frag'):
+        node = FragNodeInfo(filename=label)
+    elif any( (label.endswith(ext) for ext in MODELEXTS) ):
+        node = ModelNodeInfo(filename=label)
+    elif label.startswith('u_'):
+        u_type = dotData.get('type')
+        if not u_type:
+            warning_log(f"suspicious u_ prefix in {id} metadata {dotData}")
+            continue
+        node = UniformNodeInfo(name=label, type=u_type)
+    elif label.endswith('.png'):
+        node = TextureNodeInfo(filename=label)
+    else:
+        any ( label.startswith(t) for t in 
     
+        
+def visit_node(id: str, dotData: dict):
+class RecurNode(NodeInfo):
+    id: str
+    metadata: dict
+    edges: dict
+    def visit()
+
 #+END_SRC
-
-#+RESULTS:
-
-* Problems
-something is happening where texCoordVarying is always zero for simple.frag
-* Tests
-
-#+NAME: Setup!
-#+BEGIN_SRC ein-python :session http://127.0.0.1:8888/notebooks/new.ipynb :results raw drawer
-from pythonosc import udp_client
-import time
-localhost = "127.0.0.1"
-port = 8000
-
-client = udp_client.SimpleUDPClient(localhost, port)
-# working
-def msg(id, frag_name, U, on=True):
-  vert_shader = 'shaders/shader.vert'
-  msgs = [ ("LOAD_FILE", id, vert_shader, frag_name),
-  ("TOGGLE_ACTIVE", id, on)] + \
-    [("UPDATE_UNIFORM", id, i, U) for i in range(4)]
-
-  for msg in msgs:
-    time.sleep(.1)
-
-    # print(msg)
-    client.send_message("/graph", msg)
-print('okay')
-#+END_SRC
-
-#+RESULTS: Setup!
-:RESULTS:
-[....]
-:END:
-
-
-
-
-
-#+NAME: Clear!
-#+BEGIN_SRC ein-python :session http://127.0.0.1:8888/notebooks/new.ipynb :results silent drawer
-msg("A1-0", gen_shader, .8, False)
-msg("B2-0", invert, .1, False)
-msg("C3-1", kscope, .1, False)
-msg("D4-2", kscope, .1, False)
-#+END_SRC
-
-#+NAME: 9D698AC8-8621-47A6-8F3F-CE3C6CAA4A7B
-#+BEGIN_SRC ein-python :session http://127.0.0.1:8888/notebooks/new.ipynb :results raw drawer
-for x in range(1):
-  gen_shader = 'shaders/hypnotic_rings.frag'
-  simple_gen = 'shaders/simple.frag'
-  kscope = 'shaders/kaleidoscope-failing.frag'
-  invert = 'shaders/invert.frag'
-  mirrorX = 'shaders/mirrorX.frag'
-  mirrorY = 'shaders/mirrorY.frag'
-  client.send_message("/shader/start", True)
-  msg("A1-0", simple_gen, .8)
-#  msg("B2-0", mirrorY, .5)
-#  msg("C3-1", mirrorX, .1)
-  # msg("D4-2", mirror, .1)
-## msg("C3-1", 'shadres/invert.frag' .5)
-  print('sent')
-  # time.sleep(6)
-print('done.')
-#+END_SRC
-
-#+RESULTS: 9D698AC8-8621-47A6-8F3F-CE3C6CAA4A7B
-:RESULTS:
-[....]
-:END:
-
-
-
-
-
-
-
-
-
-
 
