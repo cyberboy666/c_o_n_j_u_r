@@ -84,9 +84,14 @@ public:
     isActive = true;
   }
 };
+// unordered_map<string, float>  shaderUniformsF;
+// unordered_map<string, bool>  shaderUniformsB;
 enum Action {LOAD_FILE, NOTHING, UPDATE_UNIFORM, ROTATE, TOGGLE_ACTIVE };
 typedef unordered_map<Id, ofxNode> Nodemap;
 typedef unordered_map<Id, Action> actionMap;
+typedef unordered_map<Id, conjur> shaderMap;
+// shaderMap shaders;
+// typedef unordered_map<Id, ofxAutoReloadedShader> shaderMap;
 // typedef unordered_map<Id, string> OSCmap;
 
 
@@ -132,7 +137,7 @@ class ofApp : public ofBaseApp{
         void drawPlayerIfPlayingOrPaused(recurVideoPlayer& player);
         void updateStatus(recurVideoPlayer& player, string statusValue);
         void setupCapture(string captureType);
-
+  // unordered_map<Id 
     vector<Id> nodeOrder;
     ofxOscReceiver receiver;
     ofxOscSender sender;

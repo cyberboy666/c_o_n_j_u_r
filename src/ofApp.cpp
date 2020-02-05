@@ -1,11 +1,20 @@
 #include "ofApp.h"
 #include <deque>
+// #include "ofxOscSubscriber.h"
+#define SUBPORT 8000
+#define HOST "localhost"
+#define UNIFORM_PREFIX_FLOAT "u_x"
+#define UNIFORM_PREFIX_BOOL "u_b"
+#define UNIFORM_PREFIX_TEXTURE "u_tex"
 // #include <filesystem>
 //--------------------------------------------------------------
 void ofApp::setup3D() {
       
       bool parsingSuccessful = sceneConfig.open(sceneConfigPath);
       if (parsingSuccessful) {
+         for (auto x : sceneConfig["textureOrder"]) { 
+           nodeOrder.push_back(x.asString());
+         }
          use3D = sceneConfig["enable"].asBool();
          if (!use3D) return;
          ofLogNotice("ofApp::setup") << sceneConfig.getRawString();
@@ -26,15 +35,52 @@ void ofApp::setup3D() {
          }
          cameraDistance = sceneConfig["camera"]["distance"].asFloat();
          ofRotationAngle = sceneConfig["ofRotationAngle"].asFloat();
-         modelShader.load(sceneConfig["vertShader"].asString(), sceneConfig["fragShader"].asString());
+  
+       modelShader.load(sceneConfig["vertShader"].asString(), sceneConfig["fragShader"].asString());
          lightOn = sceneConfig["light"]["on"].asBool();
          lightTiedToCamera = sceneConfig["light"]["tiedToCamera"].asBool();
          // TODO: uncomment and replace
          // camera.setDistance(cameraDistance);
+
          camera.setPosition(0, 0, 525);
-
-
-}
+         // camera position, camera 
+         //         ofxSubscribeOsc(HOST, SUBPORT, "/3D/lightOn", lightOn);
+         //         ofxSubscribeOsc(HOST, SUBPORT, "/3D/camera/distance", &camera.getPosition());
+         //         ofxSubscribeOsc(HOST, SUBPORT, "/3D/scene/translation", sceneTranslation);
+         //          
+         //          for (int i = 0; i < 6; i++) {
+         //            shaderUniformsF[ UNIFORM_PREFIX_FLOAT + ofToString(i) ] = 0;
+         //              }
+         //          for (int i = 0; i < 2; i++) {
+         //            shaderUniformsB[ UNIFORM_PREFIX_BOOL + ofToString(i) ] = false;
+         //              }
+         //          string EMPTY = "UNINITIALIZED";
+         //          string uname;
+         //          for (int i = 0; i < 2; i++) {
+         //            uname = UNIFORM_PREFIX_TEXTURE + ofToString(i);
+         //            shaderUniformsTexIds[ uname ] = EMPTY;
+         //            ofxSubscribeOsc(HOST, "/3D/shaderGraphExample/onlyOneShader/" + uname, [=](const string srcID) {
+         //                 shaderUniformsTexIds[ uname ] = srcID;
+         //                                                                                   });
+         //           }
+         //          for (auto& p : shaderUniformsF ) {
+         //            string addr = "/3D/model/" + "frag" + "/" + p.first;
+         //            // if we use the key, the types will still work out in the end
+         //            ofxSubscribeOsc(HOST, addr, [=](const float x) {
+         //                  shaderUniformsF[p.first] = x;
+         //                                        });
+         //        ofxSubscribeOsc(HOST, "/3D/cam/position", [=](const glm::vec3 pos) {
+         //            camera.setPosition(pos); // camera.lookAt(lookat);
+         //    });
+         //        // we don't actually have to store the uniforms huh?
+         //        //  (int i = 0; i < 3; i++ ) {
+         //        //    for (auto& p : 
+         //        //    string name = UNIFORM_PREFIX_TEXTURE + ofToString(i);
+         //        // ofxSubscribeOsc(OF_PORT, "/3D/camera/lookat", [=](const glm::vec3 lookat) {lookat = g_lookat; cam.lookAt(lookat);});
+         //
+         //
+         //      }
+  }
 }
 void ofApp::setup(){
     
@@ -49,7 +95,7 @@ void ofApp::setup(){
 
     setFrameSizeFromFile();
 
-    receiver.setup(8000);
+    receiver.setup(SUBPORT);
     sender.setup("localhost", 9000);
 
     hasCapture = false;
@@ -84,15 +130,15 @@ void ofApp::setup(){
 
 
 
-    vector<Id> tmpIds { "A", "B", "C", "D", "E" };
-    for (auto id : tmpIds) {
-      nodeOrder.push_back(id);
-      conjur shader;
-      shader.setup();
-      Attributes unis {  { {"u_x0", "bully"}, {"u_x1", "bully"}, {"u_x2", "bully"}, {"u_x3", "bully"}}};
-      ofxNode node { unis, id, shader, false};
-      nodes[id] = node;
-      }
+    //    vector<Id> tmpIds { "A", "B", "C", "D", "E" };
+    //    for (auto id : tmpIds) {
+    //      nodeOrder.push_back(id);
+    //      conjur shader;
+    //      shader.setup();
+    //      Attributes unis {  { {"u_x0", "bully"}, {"u_x1", "bully"}, {"u_x2", "bully"}, {"u_x3", "bully"}}};
+    //      ofxNode node { unis, id, shader, false};
+    //      nodes[id] = node;
+    //      }
 
     effectInput = {};
     
@@ -106,6 +152,7 @@ void ofApp::setup(){
 
     ofFboSettings settings;
     settings.internalformat = GL_RGB32F; // FGL_RGB;
+    // settings.internalformat = FGL_RGB;
     settings.width = ofGetWidth();
     settings.height = ofGetHeight();
     settings.useDepth = true;
@@ -140,7 +187,7 @@ void ofApp::update(){
     videoGrabber.update();
 
 
-  effectInput = {};
+    // effectInput = {};
 
 
   if (use3D) {
@@ -228,7 +275,7 @@ void ofApp::drawScreen(){
      else{
         fbo.begin();
         // TODO remove commenting and see if fbo.draw can be dropped
-        // drawCaptureAndPlayers();
+        drawCaptureAndPlayers();
         fbo.draw(0, 0); 
         fbo.end();
     }
