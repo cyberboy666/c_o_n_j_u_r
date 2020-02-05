@@ -9,11 +9,11 @@
 // #include <filesystem>
 //--------------------------------------------------------------
 void ofApp::setup3D() {
-      
+  // "textureOrder" : [ "shaders/hypnotic_rings.frag", "shaders/line.frag", "shaders/wipe.frag"]
       bool parsingSuccessful = sceneConfig.open(sceneConfigPath);
       if (parsingSuccessful) {
          for (auto x : sceneConfig["textureOrder"]) { 
-           nodeOrder.push_back(x.asString());
+           nodeOrder.push_back(x.asInt());
          }
          use3D = sceneConfig["enable"].asBool();
          if (!use3D) return;
@@ -123,9 +123,8 @@ void ofApp::setup(){
     mixShader.setup();
     mixShader.shaderParams[0] = 0.5;
 
-
-    effectShader0.setup(); effectShader1.setup(); effectShader2.setup();
-    effectShader0active = false; effectShader1active = false; effectShader2active = false;
+    // effectShader0.setup(); effectShader1.setup(); effectShader2.setup();
+    // effectShader0active = false; effectShader1active = false; effectShader2active = false;
 
 
 
@@ -164,6 +163,13 @@ void ofApp::setup(){
         ofClearAlpha();
     fbo.end();
 
+    int MAX_SHADERS = 6;
+    // vector<Id> tmpIds { "0", "1", "2", "3", "4", "5" };
+    for (int i = 0; i < MAX_SHADERS; i++) {
+      conjur shader;
+      shader.setup();
+      shaderMap.push_back(shader);
+    }
     // 3d setup
     sceneConfigPath = "3D/scene.json";
     setup3D();
@@ -191,7 +197,7 @@ void ofApp::update(){
 
 
   if (use3D) {
-    float utime = effectShader0.getTime();
+    float utime = shaderMap[0].getTime();
     fbo.begin();
     effectShaderInput = true;
     ofEnableDepthTest();	//Enable z-buffering
@@ -255,22 +261,17 @@ void ofApp::drawScreen(){
   // should probably get time once and then pass it around
   //    for (auto& p : nodes)
   //        useShader = useShader || p.second.isActive;
-        useShader = effectShader0active || effectShader1active || effectShader2active;
+  useShader = !nodeOrder.empty();
+    // useShader = effectShader0active || effectShader1active || effectShader2active;
 
     // if detour mode then only draw effect now if set to input , otherwise draw this in detour meathod
     if (use3D) effectInput.insert(effectInput.begin(), fbo.getTexture());
     bool drawEffectShader = useShader && ( !isDetour || effectShaderInput);
     if(drawEffectShader){
       effectInput = {};
-        drawCaptureAndPlayers();
-        fbo = applyEffectShaderChain(effectInput);
+      drawCaptureAndPlayers();
+      fbo = applyEffectShaderChain(effectInput);
 
-        //        for (auto id : nodeOrder) {
-        //            if (nodes[id].isActive) {
-        //                fbo = nodes[id].shader.apply(effectInput);
-        //                effectInput.insert(effectInput.begin(), fbo.getTexture());
-        //          }
-        //       }
      }
      else{
         fbo.begin();
@@ -289,18 +290,11 @@ void ofApp::drawScreen(){
 }
 
 ofFbo ofApp::applyEffectShaderChain(vector<ofTexture> effectInput){
-    if(effectShader0active){
-        fbo = effectShader0.apply(effectInput);
-        effectInput.insert(effectInput.begin(), fbo.getTexture());
-    }
-    if(effectShader1active){
-        fbo = effectShader1.apply(effectInput);
-        effectInput.insert(effectInput.begin(), fbo.getTexture());
-    }
-    if(effectShader2active){
-        fbo = effectShader2.apply(effectInput);
-        effectInput.insert(effectInput.begin(), fbo.getTexture());
-    }
+                for (auto id : nodeOrder) {
+                      // fbo = nodes[id].shader.apply(effectInput);
+                        fbo = shaderMap[id].apply(effectInput);
+                        effectInput.insert(effectInput.begin(), fbo.getTexture());
+               }
     return fbo;
   }
 
@@ -498,31 +492,40 @@ void ofApp::receiveMessages(){
         }
         else if(m.getAddress() == "/shader/0/load"){
             ofLog() << "loading shader 0 now !!!!";
-            effectShader0.loadShaderFiles(m.getArgAsString(0), m.getArgAsString(1));
+            shaderMap[0].loadShaderFiles(m.getArgAsString(0), m.getArgAsString(1));
             }
         else if(m.getAddress() == "/shader/1/load"){
-            effectShader1.loadShaderFiles(m.getArgAsString(0), m.getArgAsString(1));
+            shaderMap[1].loadShaderFiles(m.getArgAsString(0), m.getArgAsString(1));
             }
         else if(m.getAddress() == "/shader/2/load"){
-            effectShader2.loadShaderFiles(m.getArgAsString(0), m.getArgAsString(1));
+            shaderMap[2].loadShaderFiles(m.getArgAsString(0), m.getArgAsString(1));
+            }
+        else if(m.getAddress() == "/shader/3/load"){
+            shaderMap[3].loadShaderFiles(m.getArgAsString(0), m.getArgAsString(1));
             }
         else if(m.getAddress() == "/shader/0/param"){
-            effectShader0.shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
+            shaderMap[0].shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
         }
         else if(m.getAddress() == "/shader/1/param"){
-            effectShader1.shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
+            shaderMap[1].shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
         }
         else if(m.getAddress() == "/shader/2/param"){
-            effectShader2.shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
+            shaderMap[2].shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
+        }
+        else if(m.getAddress() == "/shader/3/param"){
+            shaderMap[3].shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
         }
         else if(m.getAddress() == "/shader/0/speed"){
-            effectShader0.setSpeed(m.getArgAsFloat(0));
+            shaderMap[0].setSpeed(m.getArgAsFloat(0));
         }
         else if(m.getAddress() == "/shader/1/speed"){
-            effectShader1.setSpeed(m.getArgAsFloat(0));
+            shaderMap[1].setSpeed(m.getArgAsFloat(0));
         }
         else if(m.getAddress() == "/shader/2/speed"){
-            effectShader2.setSpeed(m.getArgAsFloat(0));
+            shaderMap[2].setSpeed(m.getArgAsFloat(0));
+        }
+        else if(m.getAddress() == "/shader/3/speed"){
+            shaderMap[3].setSpeed(m.getArgAsFloat(0));
         }
         else if(m.getAddress() == "/shader/start"){
             useShader = true;
@@ -530,16 +533,16 @@ void ofApp::receiveMessages(){
         else if(m.getAddress() == "/shader/stop"){
             useShader = false;
         }
-        else if(m.getAddress() == "/shader/0/is_active"){
-            effectShader0active = m.getArgAsBool(0);
-            ofLog() << "shader0 is active : " << m.getArgAsBool(0);
-        }
-        else if(m.getAddress() == "/shader/1/is_active"){
-            effectShader1active = m.getArgAsBool(0);
-        }
-        else if(m.getAddress() == "/shader/2/is_active"){
-            effectShader2active = m.getArgAsBool(0);
-        }
+        //        else if(m.getAddress() == "/shader/0/is_active"){
+        //            effectShader0active = m.getArgAsBool(0);
+        //            ofLog() << "shader0 is active : " << m.getArgAsBool(0);
+        //        }
+        //        else if(m.getAddress() == "/shader/1/is_active"){
+        //            effectShader1active = m.getArgAsBool(0);
+        //        }
+        //        else if(m.getAddress() == "/shader/2/is_active"){
+        //            effectShader2active = m.getArgAsBool(0);
+        //        }
         else if(m.getAddress() == "/capture/setup"){
             ofLog(OF_LOG_NOTICE, "setting up the capture type" + m.getArgAsString(0) );
             captureType = m.getArgAsString(0);

@@ -89,7 +89,6 @@ public:
 enum Action {LOAD_FILE, NOTHING, UPDATE_UNIFORM, ROTATE, TOGGLE_ACTIVE };
 typedef unordered_map<Id, ofxNode> Nodemap;
 typedef unordered_map<Id, Action> actionMap;
-typedef unordered_map<Id, conjur> shaderMap;
 // shaderMap shaders;
 // typedef unordered_map<Id, ofxAutoReloadedShader> shaderMap;
 // typedef unordered_map<Id, string> OSCmap;
@@ -138,7 +137,7 @@ class ofApp : public ofBaseApp{
         void updateStatus(recurVideoPlayer& player, string statusValue);
         void setupCapture(string captureType);
   // unordered_map<Id 
-    vector<Id> nodeOrder;
+    vector<int> nodeOrder;
     ofxOscReceiver receiver;
     ofxOscSender sender;
   array<int, 3>  sceneTranslation;
@@ -182,12 +181,14 @@ class ofApp : public ofBaseApp{
     bool effectShaderInput;
     detour thisDetour;
     conjur mixShader;
-    conjur effectShader0;
-    conjur effectShader1;
-    conjur effectShader2;
-    bool effectShader0active;
-    bool effectShader1active;
-    bool effectShader2active;
+  // unordered_map<int, conjur> shaderMap;
+    vector<conjur> shaderMap;
+  //    conjur effectShader0;
+  //    conjur effectShader1;
+  //    conjur effectShader2;
+  //    bool effectShader0active;
+  //    bool effectShader1active;
+  //    bool effectShader2active;
 
   //    vector<fxNode> orderedFX;
   //    vector<vxNode> fxTree;
