@@ -18,5 +18,14 @@
     "ofRotate" : [ 0, 1, 0 ],
     "ofScale"  : [50, 50, 50],
     "ofRotationAngle" : 10,
-    "textureOrder" : [ 4, 3 ]
-    }
+    "textureOrder" : [ 0, 3, 4, 1, 2],
+    "orderedGraph" : [
+        {"file" : "",
+         "arity" : 0,
+         "id" : "0",
+         "outEdges" : 2,
+         "inTextures" : ["1", "2"]
+
+        }
+    ]
+}

@@ -15,6 +15,7 @@
 #include "ofxAssimpModelLoader.h"
 #include "ofxJSON.h"
 #include "ofxAutoReloadedShader.h"
+#include "recurNode.h"
 // #inlucde "ofxAutoReloadShader"
 #define UNIFORM_F_INIT 0.0
 // #include "ofxGui.h"
@@ -51,6 +52,7 @@ enum shape3D {SHPERE,CUBE,CYLINDER,MODEL};
   //    ThreeD scale;
   //    ofMesh* mesh;
   //    ofxAssimpModelLoader* model;
+
   //    string modelFile;
   //    ofEasyCam* camera;
   //    shape3D shape;
@@ -62,7 +64,6 @@ enum shape3D {SHPERE,CUBE,CYLINDER,MODEL};
   //    mesh = m;
   //  }
 // } ;
-// typedef unordered_map<Id, Command> Nodemap;
 class ofxNode {
 
 public: 
@@ -89,6 +90,7 @@ public:
 enum Action {LOAD_FILE, NOTHING, UPDATE_UNIFORM, ROTATE, TOGGLE_ACTIVE };
 typedef unordered_map<Id, ofxNode> Nodemap;
 typedef unordered_map<Id, Action> actionMap;
+typedef unordered_map<Id, recurNode*> recurGraph;
 // shaderMap shaders;
 // typedef unordered_map<Id, ofxAutoReloadedShader> shaderMap;
 // typedef unordered_map<Id, string> OSCmap;
@@ -111,6 +113,7 @@ class ofApp : public ofBaseApp{
 		void draw();
 		void drawScreen();
 		void keyPressed(int key);
+  recurGraph graph;
   void setup3D(); 
   ofTexture modelTex; 
   string sceneConfigPath;
@@ -137,7 +140,7 @@ class ofApp : public ofBaseApp{
         void updateStatus(recurVideoPlayer& player, string statusValue);
         void setupCapture(string captureType);
   // unordered_map<Id 
-    vector<int> nodeOrder;
+    vector<Id> nodeOrder;
     ofxOscReceiver receiver;
     ofxOscSender sender;
   array<int, 3>  sceneTranslation;
@@ -181,8 +184,10 @@ class ofApp : public ofBaseApp{
     bool effectShaderInput;
     detour thisDetour;
     conjur mixShader;
+    ofImage img;
   // unordered_map<int, conjur> shaderMap;
     vector<conjur> shaderMap;
+  unordered_map<Id, int> textureCount;
   //    conjur effectShader0;
   //    conjur effectShader1;
   //    conjur effectShader2;

@@ -1,4 +1,5 @@
 #include "ofApp.h"
+
 #include <deque>
 // #include "ofxOscSubscriber.h"
 #define SUBPORT 8000
@@ -6,16 +7,59 @@
 #define UNIFORM_PREFIX_FLOAT "u_x"
 #define UNIFORM_PREFIX_BOOL "u_b"
 #define UNIFORM_PREFIX_TEXTURE "u_tex"
+#define DEFAULT_VERT_SHADER  "/home/pi/r_e_c_u_r/Shaders/default.vert"
 // #include <filesystem>
 //--------------------------------------------------------------
+bool endsWith (std::string const &fullString, std::string const &ending) {
+    if (fullString.length() >= ending.length()) {
+        return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
+    } else {
+        return false;
+    }
+}
+
+//if hasEnding(file, "png") {
+//  
+//            }
+
 void ofApp::setup3D() {
   // "textureOrder" : [ "shaders/hypnotic_rings.frag", "shaders/line.frag", "shaders/wipe.frag"]
       bool parsingSuccessful = sceneConfig.open(sceneConfigPath);
-      if (parsingSuccessful) {
-         for (auto x : sceneConfig["textureOrder"]) { 
-           nodeOrder.push_back(x.asInt());
-         }
+      //      if (parsingSuccessful) {
+      //         for (auto x : sceneConfig["textureOrder"]) { 
+      //           nodeOrder.push_back(x.asInt());
+      //         }
+         // TODO: could be .load
+         img.loadImage("3D/pikachu.png");
          use3D = sceneConfig["enable"].asBool();
+         for (auto& e : sceneConfig["orderedGraph"]) {
+           string file = e["file"].asString();
+           string id = e["id"].asString(); 
+           if (endsWith(file, ".frag")) {
+              fragType ft = (fragType) e["inputs"].asInt();
+              // auto v_ = e.find("vertex");
+              // string vertFile =  (v_ != e.end()) ? v_ : DEFAULT_VERT_SHADER;
+              conjur shader;
+              string vertFile = (e["vertexFile"].asString());
+              int outEdges = e["outEdges"].asInt();
+              vector<string> dependencies;
+              for (auto&s e: e["dependencies"]) {
+                dependencies.push_back(e);
+              }
+              shaderNode n { shader, ft, outEdges, dependencies };
+              // textureUsageMap[id] = outEdges;
+              shader.setup();
+              shader.loadShaderFiles(file, vertFile);
+              graph[id] = &n;
+              // after rendering node, store texture under nodes own id (so only one copy)
+              // when rendering node, look at node's dependencies; for each of those, get the fbo
+              textureCount[id] = outEdges;
+              // subtract from texturecount map
+              // when subtracted, delete key from dict
+             }
+           // nodeOrder.insert(nodeOrder.begin(), id);
+           nodeOrder.push_back(id);
+         } 
          if (!use3D) return;
          ofLogNotice("ofApp::setup") << sceneConfig.getRawString();
          model.loadModel(sceneConfig["model"].asString());
@@ -80,7 +124,7 @@ void ofApp::setup3D() {
          //
          //
          //      }
-  }
+}
 }
 void ofApp::setup(){
     
@@ -290,10 +334,41 @@ void ofApp::drawScreen(){
 }
 
 ofFbo ofApp::applyEffectShaderChain(vector<ofTexture> effectInput){
+  // unordered_map<Id, int> texCount = {};
+  textureCount = {};
+  ofTexture tex;
                 for (auto id : nodeOrder) {
-                      // fbo = nodes[id].shader.apply(effectInput);
-                        fbo = shaderMap[id].apply(effectInput);
-                        effectInput.insert(effectInput.begin(), fbo.getTexture());
+                  if (id == "4") {
+                    // in_texture.loadData(in_frame.getData(), in_frame.getWidth(), in_frame.getHeight(), GL_RGB);
+                    // ofPixels pixels = img.getPixels();
+                    // detour_texture.loadData(pixels.getData(), pixels.getWidth(), pixels.getHeight(), GL_RGB);
+                    img.draw(0, 0, ofGetWidth(), ofGetHeight());
+                    effectInput.insert(effectInput.begin(), img.getTexture());
+                    // fbo.begin();  fbo.end(); effectInput.insert(effectInput.begin(), img.getTextureReference());
+                  }
+                  else {
+                    
+                    // might be better off using/implementing `getTexture` for the nodes
+                    
+                    // fbo = shaderMap[id].apply(effectInput);
+                    for (auto& s : graph[id]->deps) {
+                      effectInput.push_back(textureMap[s]);
+                      textureCount[s]--;
+                    }
+                     tex = graph[id]->render(ofGetWidth(), ofGetHeight(), effectInput);
+                    // 
+                    int texUses = graph[id]->outEdges;
+                    if ( texUses > 0 ) {
+                      textureCount[id] = texUses;
+                      textureMap[id] = tex;
+                    }
+                    for (auto& s : graph[id]->deps) {
+                      // delete textureMap[s]
+                    }
+
+
+                      // effectInput.insert(effectInput.begin(), fbo.getTexture());
+                  }
                }
     return fbo;
   }
