@@ -7,8 +7,9 @@
 #define UNIFORM_PREFIX_FLOAT "u_x"
 #define UNIFORM_PREFIX_BOOL "u_b"
 #define UNIFORM_PREFIX_TEXTURE "u_tex"
-#define DEFAULT_VERT_SHADER  "/home/pi/r_e_c_u_r/Shaders/default.vert"
+// #define DEFAULT_VERT_SHADER  "/home/pi/r_e_c_u_r/Shaders/default.vert"
 // #include <filesystem>
+
 //--------------------------------------------------------------
 bool endsWith (std::string const &fullString, std::string const &ending) {
     if (fullString.length() >= ending.length()) {
@@ -32,33 +33,44 @@ void ofApp::setup3D() {
          // TODO: could be .load
          img.loadImage("3D/pikachu.png");
          use3D = sceneConfig["enable"].asBool();
+         ofLogNotice(sceneConfig.getRawString());
          for (auto& e : sceneConfig["orderedGraph"]) {
            string file = e["file"].asString();
            string id = e["id"].asString(); 
            if (endsWith(file, ".frag")) {
-              fragType ft = (fragType) e["inputs"].asInt();
+              fragType ft = (fragType) e["arity"].asInt();
               // auto v_ = e.find("vertex");
               // string vertFile =  (v_ != e.end()) ? v_ : DEFAULT_VERT_SHADER;
               conjur shader;
-              string vertFile = (e["vertexFile"].asString());
+              //
+              string vertFile = "shaders/shader.vert"; // DEFAULT_VERT_SHADER;  //TODO:  (e["vertexFile"].asString());
               int outEdges = e["outEdges"].asInt();
               vector<string> dependencies;
-              for (auto&s : e["dependencies"]) {
+              for (auto&s : e["inTextures"]) {
                 dependencies.push_back(s.asString());
+                ofLogNotice("pushing dep " ) << s.asString();
               }
-              shaderNode n { shader, ft, outEdges, dependencies };
+              //shaderNode n;
+              //n.build(shader, ft, outEdges, dependencies);
               // textureUsageMap[id] = outEdges;
               shader.setup();
-              shader.loadShaderFiles(file, vertFile);
-              graph[id] = &n;
+              shader.graphSetup(dependencies);
+              ofLogNotice("adding id" ) << id;
+              shader.loadShaderFiles( "shaders/shader.vert", file);
+              // graph[id] = n;
+              graph[id] = shader;
+              //              shader.deps = dependencies;
+              //              shader.inputs = ft;
+              //              shader.outEdges = outEdges;
+              
+              nodeOrder.push_back(id);
               // after rendering node, store texture under nodes own id (so only one copy)
               // when rendering node, look at node's dependencies; for each of those, get the fbo
-              textureCount[id] = outEdges;
+              // textureCount[id] = outEdges;
               // subtract from texturecount map
               // when subtracted, delete key from dict
              }
            // nodeOrder.insert(nodeOrder.begin(), id);
-           nodeOrder.push_back(id);
          } 
          if (!use3D) return;
          ofLogNotice("ofApp::setup") << sceneConfig.getRawString();
@@ -81,7 +93,8 @@ void ofApp::setup3D() {
          ofRotationAngle = sceneConfig["ofRotationAngle"].asFloat();
   
        modelShader.load(sceneConfig["vertShader"].asString(), sceneConfig["fragShader"].asString());
-         lightOn = sceneConfig["light"]["on"].asBool();
+ 
+        lightOn = sceneConfig["light"]["on"].asBool();
          lightTiedToCamera = sceneConfig["light"]["tiedToCamera"].asBool();
          // TODO: uncomment and replace
          // camera.setDistance(cameraDistance);
@@ -208,7 +221,7 @@ void ofApp::setup(){
     fbo.end();
 
     int MAX_SHADERS = 6;
-    // vector<Id> tmpIds { "0", "1", "2", "3", "4", "5" };
+    vector<Id> tmpIds { "0", "1", "2", "3", "4", "5" };
     for (int i = 0; i < MAX_SHADERS; i++) {
       conjur shader;
       shader.setup();
@@ -217,6 +230,7 @@ void ofApp::setup(){
     // 3d setup
     sceneConfigPath = "3D/scene.json";
     setup3D();
+    toggleMike = true;
 }
 
 void ofApp::printStatus() {
@@ -289,7 +303,6 @@ void ofApp::update(){
     
   }
 
-
     
     }
 
@@ -305,7 +318,7 @@ void ofApp::drawScreen(){
   // should probably get time once and then pass it around
   //    for (auto& p : nodes)
   //        useShader = useShader || p.second.isActive;
-  useShader = !nodeOrder.empty();
+  useShader = (!nodeOrder.empty() && toggleMike);
     // useShader = effectShader0active || effectShader1active || effectShader2active;
 
     // if detour mode then only draw effect now if set to input , otherwise draw this in detour meathod
@@ -338,6 +351,13 @@ ofFbo ofApp::applyEffectShaderChain(vector<ofTexture> effectInput){
   textureCount = {};
   ofTexture tex;
                 for (auto id : nodeOrder) {
+                  ///   for (auto& p : graph) {
+                  ///     ofLogNotice(p.first + " found in graph ");
+                  ///     ofLogNotice( id + " " + ofToString(p.first == id) + " found in graph ");
+                  ///  }
+                  // shaderNode nx = (shaderNode) *(graph[id]);
+                  //                  for (auto& x : graph[id]->deps) {
+                  //                  }
                   if (id == "4") {
                     // in_texture.loadData(in_frame.getData(), in_frame.getWidth(), in_frame.getHeight(), GL_RGB);
                     // ofPixels pixels = img.getPixels();
@@ -347,16 +367,22 @@ ofFbo ofApp::applyEffectShaderChain(vector<ofTexture> effectInput){
                     // fbo.begin();  fbo.end(); effectInput.insert(effectInput.begin(), img.getTextureReference());
                   }
                   else {
-                    
+                  
                     // might be better off using/implementing `getTexture` for the nodes
                     
                     // fbo = shaderMap[id].apply(effectInput);
                     // shaderNode n  = (shaderNode) *graph[id];
-                    for (auto& s : graph[id]->deps) {
-                      effectInput.push_back(textureMap[s]);
+                    for (auto& s : (graph[id].getDeps()) ) {
+                      ofLogNotice("inserting texture for dep " + s);
+                      // effectInput.push_back(textureMap[s]);
+                      effectInput.insert(effectInput.begin(), textureMap[s]);
+                      ofLogNotice("inserting texture for dep " + s + " "  + ofToString(effectInput.size()));
                       // textureCount[s]--;
                     }
-                     tex = graph[id]->render(ofGetWidth(), ofGetHeight(), effectInput);
+                      fbo = graph[id].apply(effectInput);
+                      // tex = fbo.getTexture();
+                      textureMap[id] = fbo.getTexture();
+                      // tex = graph[id].render(ofGetWidth(), ofGetHeight(), effectInput);
                     // 
                     // int texUses = graph[id]->outEdges;
                     textureMap[id] = tex;
@@ -610,10 +636,20 @@ void ofApp::receiveMessages(){
         else if(m.getAddress() == "/shader/stop"){
             useShader = false;
         }
-        //        else if(m.getAddress() == "/shader/0/is_active"){
-        //            effectShader0active = m.getArgAsBool(0);
+        //        else if(m.getAddress() == "/shader/420/is_active"){
         //            ofLog() << "shader0 is active : " << m.getArgAsBool(0);
         //        }
+        else if(m.getAddress() == "/shader/420/load"){
+          toggleMike = true; // m.getArgAsBool(0);
+          for (auto& p: graph) {
+            // p.second.loadShaderFiles("shaders/shader.vert", "shaders/hypnotic_rings.frag");
+          for (int i = 0; i < 4; i++) { 
+          p.second.shaderParams[i] = 0.5;
+            }
+          }
+        }
+        else if(m.getAddress() == "/shader/420/param"){
+        }
         //        else if(m.getAddress() == "/shader/1/is_active"){
         //            effectShader1active = m.getArgAsBool(0);
         //        }

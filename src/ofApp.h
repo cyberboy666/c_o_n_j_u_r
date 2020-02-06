@@ -60,6 +60,7 @@ enum shape3D {SHPERE,CUBE,CYLINDER,MODEL};
   //  ofTexture tex;
   //
   //  }
+
   //  void setMesh(ofMesh* mesh) {
   //    mesh = m;
   //  }
@@ -90,7 +91,7 @@ public:
 enum Action {LOAD_FILE, NOTHING, UPDATE_UNIFORM, ROTATE, TOGGLE_ACTIVE };
 typedef unordered_map<Id, ofxNode> Nodemap;
 typedef unordered_map<Id, Action> actionMap;
-typedef unordered_map<Id, recurNode*> recurGraph;
+typedef unordered_map<Id, conjur> recurGraph;
 // shaderMap shaders;
 // typedef unordered_map<Id, ofxAutoReloadedShader> shaderMap;
 // typedef unordered_map<Id, string> OSCmap;
@@ -113,6 +114,7 @@ class ofApp : public ofBaseApp{
 		void draw();
 		void drawScreen();
 		void keyPressed(int key);
+  bool toggleMike;
   recurGraph graph;
   void setup3D(); 
   ofTexture modelTex; 
