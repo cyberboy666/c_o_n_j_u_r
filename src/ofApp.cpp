@@ -25,7 +25,7 @@ bool endsWith (std::string const &fullString, std::string const &ending) {
 void ofApp::setup3D() {
   // "textureOrder" : [ "shaders/hypnotic_rings.frag", "shaders/line.frag", "shaders/wipe.frag"]
       bool parsingSuccessful = sceneConfig.open(sceneConfigPath);
-      //      if (parsingSuccessful) {
+            if (parsingSuccessful) {
       //         for (auto x : sceneConfig["textureOrder"]) { 
       //           nodeOrder.push_back(x.asInt());
       //         }
@@ -43,8 +43,8 @@ void ofApp::setup3D() {
               string vertFile = (e["vertexFile"].asString());
               int outEdges = e["outEdges"].asInt();
               vector<string> dependencies;
-              for (auto&s e: e["dependencies"]) {
-                dependencies.push_back(e);
+              for (auto&s : e["dependencies"]) {
+                dependencies.push_back(s.asString());
               }
               shaderNode n { shader, ft, outEdges, dependencies };
               // textureUsageMap[id] = outEdges;
@@ -351,20 +351,22 @@ ofFbo ofApp::applyEffectShaderChain(vector<ofTexture> effectInput){
                     // might be better off using/implementing `getTexture` for the nodes
                     
                     // fbo = shaderMap[id].apply(effectInput);
+                    // shaderNode n  = (shaderNode) *graph[id];
                     for (auto& s : graph[id]->deps) {
                       effectInput.push_back(textureMap[s]);
-                      textureCount[s]--;
+                      // textureCount[s]--;
                     }
                      tex = graph[id]->render(ofGetWidth(), ofGetHeight(), effectInput);
                     // 
-                    int texUses = graph[id]->outEdges;
-                    if ( texUses > 0 ) {
-                      textureCount[id] = texUses;
-                      textureMap[id] = tex;
-                    }
-                    for (auto& s : graph[id]->deps) {
-                      // delete textureMap[s]
-                    }
+                    // int texUses = graph[id]->outEdges;
+                    textureMap[id] = tex;
+                    //                    if ( texUses > 0 ) {
+                    //                      textureCount[id] = texUses;
+                    //                      textureMap[id] = tex;
+                    //                    }
+                    //                    for (auto& s : graph[id]->deps) {
+                    //                      // delete textureMap[s]
+                    //                    }
 
 
                       // effectInput.insert(effectInput.begin(), fbo.getTexture());

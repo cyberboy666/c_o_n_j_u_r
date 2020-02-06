@@ -10,6 +10,7 @@
 class recurNode {
 public:
   virtual ofTexture render(int width, int height, std::vector<ofTexture> textures) = 0;
+  vector<string> deps;
   //void setup(string file) = 0;
 };
 enum fragType {ZERO,ONE,TWO};
@@ -22,9 +23,9 @@ public:
  }
   fragType inputs;
   int outEdges;
-  vector<string> deps;
+  // vector<string> deps;
   //void setup() {std::cout << "setting up";};
-  shaderNode(conjur sh, fragType i, int oe, vector<stirng> ds) { shader = sh; inputs = i; outEdges = oe; deps = ds; };
+  shaderNode(conjur sh, fragType i, int oe, vector<string> ds) { shader = sh; inputs = i; outEdges = oe; deps = ds; };
 private: conjur shader;
 };
 

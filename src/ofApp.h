@@ -187,6 +187,7 @@ class ofApp : public ofBaseApp{
     ofImage img;
   // unordered_map<int, conjur> shaderMap;
     vector<conjur> shaderMap;
+  unordered_map<Id, ofTexture> textureMap;
   unordered_map<Id, int> textureCount;
   //    conjur effectShader0;
   //    conjur effectShader1;
