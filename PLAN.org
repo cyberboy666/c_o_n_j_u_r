@@ -569,3 +569,165 @@ class RecurNode(NodeInfo):
 
 #+END_SRC
 
+
+* N-shader Implementation
+ - [X] restore working non-3D
+ - [X] move shaders into a vector/stack: sort of
+ - [X] read the order from scene.json as filenames and push those on stack etc.
+ - [ ] see if top order will work with the stack -- seems to?
+ - current osc for params and setting files won't work on pi b/c it demands two arguments in osc 
+ - [X] implement static images (from [[file:~/of_v0.11.0_osx_release/addons/ofxVideoArtTools/src/detour.cpp::img.allocate(ofGetWidth(),%20ofGetHeight(),%20OF_IMAGE_COLOR);][detour.cpp code]] )
+   #+BEGIN_SRC cpp 
+    ofImage img;
+    img.allocate(ofGetWidth(), ofGetHeight(), OF_IMAGE_COLOR);
+    img.setColor(ofColor::blue);
+    img.update();
+    default_frame = img.getPixels();
+    #+END_SRC
+ - [X] implement players  [[file:src/ofApp.cpp::drawPlayerIfPlayingOrPaused(cPlayer);][ofApp.cpp]]  by calling drawPlayerIfPlayingOrPaused when we hit it in the stack
+      and not calling drawCaptureAndPlayers; 
+ - [X] implement 'capture' in the same way as players
+ - [ ] actually test/use above implementations
+
+** Figure out 3D video feedback problem
+ - using my understanding of fbo now
+** Fix ordering
+ - will it work if I pop the stack as we go? Isn't that the natural thing?:
+  but for this to work we have to know how many we've used; only shaders can pop the stack
+  and only 1-input and 2-input shaders can
+  conjur doesn't seem to know if a shader is two-input or not
+#+BEGIN_SRC dot :file recur.png
+digraph G {
+       {0, 1} -> 2 -> 3;
+}
+#+END_SRC
+
+#+BEGIN_SRC dot :file out.dot
+digraph G {
+       4 -> 1;
+       0 -> 3;
+       {1, 3} -> 2;
+}
+#+END_SRC
+#+RESULTS:
+[[file:out.dot]]
+
+#+BEGIN_SRC cpp :result raw :flags -std=c++11
+#include "stdio.h"
+#include <vector>
+#include <string>
+#include <iostream>
+
+typedef std::string conjur;
+typedef std::string ofTexture; typedef std::string ofImage; typedef std::string ofPixels;
+
+class recurNode {
+public:
+  virtual ofTexture render(int width, int height, std::vector<ofTexture> textures) = 0;
+  //void setup(string file) = 0;
+};
+
+class shaderNode : public recurNode {
+public:
+  ofTexture render(int width, int height, std::vector<ofTexture> textures) {
+     fbo = shader.apply(textures);
+     return fbo.getTexture();
+ }
+  //void setup() {std::cout << "setting up";};
+  shaderNode(conjur sh) { shader = sh; };
+private: conjur shader;
+};
+
+class videoNode : public recurNode {
+  ofTexture render(int width, int height, std::vector<ofTexture> textures) {
+    if (player.alpha > 0 && ( player.status == "PLAYING" || player.status == "PAUSED" ) ){
+        player.draw(0, 0, width, height);
+        return player.getTexture();
+  }
+}
+  //void setup() {std::cout << "setting up";};
+  videoNode(recurVideoPlayer pl) { player = pl; };
+  private: recurVideoPlayer player;
+}
+
+class videoNode : public recurNode {
+  ofTexture render(int width, int height, std::vector<ofTexture> textures) {
+        videoGrabber.draw(0,0, width, height);
+        return videoGrabber.getTexture();
+}
+  //void setup() {std::cout << "setting up";};
+  videoNode(captur gr) { videoGrabber = gr; };
+  private: captur videoGrabber;
+}
+
+class imageNode : public recurNode {
+public:
+  ofTexture render(int width, int height, std::vector<ofTexture> textures) {
+     ofPixels pixels = img.getPixels();
+     ofTexture outTexture;
+     outTexture.loadData(pixels.getData(), pixels.getWidth(), pixels.getHeight(), GL_RGB);
+     img.draw(0, 0, width, height);
+     return outTexture;
+ }
+  //void setup() {std::cout << "setting up";};
+  imageNode(ofImage im) { img = im; };
+
+private: ofImage img;
+  };
+int main () {
+ printf("HIL");
+ shaderNode n { "foo" };
+ n.setup();
+ n.render({});
+}
+#+END_SRC
+
+#+RESULTS:
+
+
+#+BEGIN_SRC cpp :result raw :flags -std=c++11
+#include "stdio.h"
+#include <vector>
+#include <string>
+#include <unordered_map>
+#include <iostream>
+
+
+enum AttrType {INT,FLOAT,STRING,EMPTY};  
+enum NodeType {SHADER,MODEL,UNIFORM};
+
+class Value { 
+public:
+  std::string value;
+  AttrType type;
+  Value(std::string v, AttrType t) {
+      value = v; type = t; 
+  }
+    Value() {value = ""; type = EMPTY;}
+  };
+class OFNode {
+public:
+  bool operator == (const OFNode& n) const {
+      return name == n.name;
+  }
+
+ // vector<attribute> attributes; 
+  // ofNode(vector<attribute> att) { attributes = att; }
+  OFNode(std::string na, int att, int e) 
+  { name = na; attributes = att; edges = e; } // ributes; // Map from string to int
+  OFNode() {attributes = 0; edges = 0;}
+private: std::string name; int edges, attributes;
+};
+
+
+
+int main () {
+ OFNode n {"foo", 2, 3};
+std::cout << "hi";
+
+}
+#+END_SRC
+
+#+RESULTS:
+: hi
+

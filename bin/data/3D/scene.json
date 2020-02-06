@@ -1,5 +1,5 @@
 { 
-    "enable" : true,
+    "enable" : false,
     "textureImage" : "3D/pikachu.png",
     "vertShader" : "3D/base.vert",
     "fragShader" : "3D/base.frag",
@@ -17,5 +17,6 @@
     "ofTrasnslateZero" : false,
     "ofRotate" : [ 0, 1, 0 ],
     "ofScale"  : [50, 50, 50],
-    "ofRotationAngle" : 10
+    "ofRotationAngle" : 10,
+    "textureOrder" : [ 4, 3 ]
     }
