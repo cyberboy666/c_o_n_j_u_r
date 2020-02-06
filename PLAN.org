@@ -731,3 +731,151 @@ std::cout << "hi";
 #+RESULTS:
 : hi
 
+
+* Feb 6
+#+BEGIN_SRC dot :file simple.dot
+digraph G {
+hypnotic_rings -> mirror -> wipe;
+line -> wipe -> invert;  
+{hypnotic_rings, invert} -> luma;
+}
+#+END_SRC
+
+#+RESULTS:
+[[file:simple.dot]]
+
+Dot to json which goes into scene.json
+
+#+BEGIN_SRC python :session :results output
+import networkx as nx
+import json
+
+g = nx.drawing.nx_agraph.read_dot('simple.dot')
+gm = nx.DiGraph(g)
+lexi = list(nx.topological_sort(nx.line_graph(gm)))
+ns = []
+
+for x in lexi:
+    if not (x[0] in ns):
+        ns.append(x[0])
+
+ds = [ {"file" : f"shaders/{k}.frag",
+         # "arity" : get_arity(k), # unused
+         "id" : k,
+         "outEdges" : len(gm[k]), # unused
+         "inTextures" :  list(gm.predecessors(k))
+        }
+ for k in ns]
+
+print(json.dumps(ds, indent=4))
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+[
+    {
+        "file": "shaders/line.frag",
+        "id": "line",
+        "outEdges": 1,
+        "inTextures": []
+    },
+    {
+        "file": "shaders/hypnotic_rings.frag",
+        "id": "hypnotic_rings",
+        "outEdges": 2,
+        "inTextures": []
+    },
+    {
+        "file": "shaders/mirror.frag",
+        "id": "mirror",
+        "outEdges": 1,
+        "inTextures": [
+            "hypnotic_rings"
+        ]
+    },
+    {
+        "file": "shaders/wipe.frag",
+        "id": "wipe",
+        "outEdges": 1,
+        "inTextures": [
+            "mirror",
+            "line"
+        ]
+    },
+    {
+        "file": "shaders/invert.frag",
+        "id": "invert",
+        "outEdges": 1,
+        "inTextures": [
+            "wipe"
+        ]
+    }
+]
+#+end_example
+
+Other Node operations
+Use with e.g. pysound to create audioreactivity etc.
+#+BEGIN_SRC python :results raw
+import random, math, operator
+from functools import partial
+
+def get_func(id, G):
+    d = G.nodes[id]
+    s = id.lower()
+    if d:
+        if 'value' in d: # const node
+            func = lambda: d['value']
+        if d.get('finish'): # terminal node
+            func = lambda *x: x
+    elif hasattr(operator, s):
+        func = getattr(operator, s)
+    elif hasattr(math, s):
+        func = getattr(math, s)
+    elif hasattr(random, s):
+        func = getattr(random, s)
+    else:
+        print(f"{id} complains. {d}")
+    return func
+
+def handle(G, RG, n):
+    func = get_func(n, G)
+    incoming = RG[n]
+    results = list(map(partial(handle, G, RG), incoming))
+    print(f"attmpting: {func} on {results} of {type({} if not results else results[0])}")
+    return func(*results)
+
+G = nx.DiGraph()
+G.add_nodes_from([('Add', {}), ('Mul', {}), ('Abs', {}), ('Sin', {}), 
+                  ('Const1', dict(value=2)), ('Const2', dict(value=3)), ('Random', {}),
+                  ("u_x0", dict(finish=True))])
+G.add_edges_from([('Const1', 'Sin'), ('Mul', 'Abs'), ('Const2', 'Add'), ('Random', 'Mul'),
+    ('Sin', 'Mul'), ('Abs', 'Add'), ('Add', 'u_x0')])
+RG = G.reverse()
+
+print( handle(G, RG, 'u_x0') )
+
+#+END_SRC
+
+
+
+
+Other things
+
+#+BEGIN_SRC python
+
+def get_arity(s): 
+    if s.lower().startswith( ('chroma', 'luma', 'othermix') ) :
+        return 2
+    elif s in {'hypnotic_rings.frag', 'Preacher', 'Ribald', 'Gopher', 'Salesman'}:
+        return 0
+    else: return 1
+
+ds = [ {"file" : f"shaders/{k}.frag",
+         "arity" : get_arity(k), # unused
+         "id" : k,
+         "outEdges" : len(gm[k]), # unused
+         "inTextures" :  list(gm.predecessors(k))
+        }
+ for k in ns]
+#+END_SRC

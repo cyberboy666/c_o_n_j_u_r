@@ -349,7 +349,7 @@ void ofApp::drawScreen(){
 ofFbo ofApp::applyEffectShaderChain(vector<ofTexture> effectInput){
   // unordered_map<Id, int> texCount = {};
   textureCount = {};
-  ofTexture tex;
+  // ofTexture tex;
                 for (auto id : nodeOrder) {
                   ///   for (auto& p : graph) {
                   ///     ofLogNotice(p.first + " found in graph ");
@@ -375,7 +375,7 @@ ofFbo ofApp::applyEffectShaderChain(vector<ofTexture> effectInput){
                     for (auto& s : (graph[id].getDeps()) ) {
                       ofLogNotice("inserting texture for dep " + s);
                       // effectInput.push_back(textureMap[s]);
-                      effectInput.insert(effectInput.begin(), textureMap[s]);
+                      effectInput.insert(effectInput.begin(), (textureMap[s]));
                       ofLogNotice("inserting texture for dep " + s + " "  + ofToString(effectInput.size()));
                       // textureCount[s]--;
                     }
@@ -385,7 +385,7 @@ ofFbo ofApp::applyEffectShaderChain(vector<ofTexture> effectInput){
                       // tex = graph[id].render(ofGetWidth(), ofGetHeight(), effectInput);
                     // 
                     // int texUses = graph[id]->outEdges;
-                    textureMap[id] = tex;
+                    // textureMap[id] = tex;
                     //                    if ( texUses > 0 ) {
                     //                      textureCount[id] = texUses;
                     //                      textureMap[id] = tex;
