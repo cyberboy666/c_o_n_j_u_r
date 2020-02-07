@@ -19,69 +19,53 @@
     "ofScale"  : [50, 50, 50],
     "ofRotationAngle" : 10,
     "textureOrder" : [ 0, 3, 4, 1, 2],
-    "orderedGraph" : 
-[
-    {
-        "file": "shaders/hypnotic_rings.frag",
-        "arity": 1,
-        "id": "hypnotic_rings",
-        "outEdges": 1,
-        "inTextures": []
-    },
-    {
-        "file": "shaders/invert.frag",
-        "arity": 1,
-        "id": "wobble",
-        "outEdges": 1,
-        "inTextures": [
-            "hypnotic_rings"
-        ]
-    },
-    {
-        "file": "shaders/invert.frag",
-        "arity": 1,
-        "id": "mirrorX",
-        "outEdges": 1,
-        "inTextures": [
-            "wobble"
-        ]
-    },
+    "orderedGraph" : [
     {
         "file": "shaders/line.frag",
-        "arity": 1,
         "id": "line",
-        "outEdges": 1,
-        "inTextures": []
+        "inTextures": [],
+        "addresses": [
+            "shader/line"
+        ]
+    },
+    {
+        "file": "shaders/hypnotic_rings.frag",
+        "id": "hypnotic_rings",
+        "inTextures": [],
+        "addresses": [
+            "shader/hypnotic_rings"
+        ]
+    },
+    {
+        "file": "shaders/mirror.frag",
+        "id": "mirror",
+        "inTextures": [
+            "hypnotic_rings"
+        ],
+        "addresses": [
+            "shader/mirror"
+        ]
     },
     {
         "file": "shaders/wipe.frag",
-        "arity": 1,
         "id": "wipe",
-        "outEdges": 1,
         "inTextures": [
-            "mirrorX",
+            "mirror",
             "line"
+        ],
+        "addresses": [
+            "shader/wipe"
         ]
     },
     {
         "file": "shaders/invert.frag",
-        "arity": 1,
-        "id": "invert2",
-        "outEdges": 1,
-        "inTextures": [ "wipe"
-        ]
-    },
-    {
-        "file": "shaders/wipe.frag",
-        "arity": 1,
-        "id": "wipe2",
-        "outEdges": 1,
+        "id": "invert",
         "inTextures": [
-            "invert2",
-            "hypnotic_rings"
+            "wipe"
+        ],
+        "addresses": [
+            "shader/invert"
         ]
     }
-    
-]
-
+    ]
 }
