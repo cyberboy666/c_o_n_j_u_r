@@ -23,11 +23,10 @@ bool endsWith (std::string const &fullString, std::string const &ending) {
 //  
 //            }
 
-void ofApp::setup3D() {
-  // "textureOrder" : [ "shaders/hypnotic_rings.frag", "shaders/line.frag", "shaders/wipe.frag"]
+void ofApp::setupGraph() {
+     threeShaderLayers = vector<shaderNode>(10);
       bool parsingSuccessful = sceneConfig.open(sceneConfigPath);
             if (parsingSuccessful) {
-         img.loadImage("3D/pikachu.png");
          use3D = sceneConfig["enable"].asBool();
          ofLogNotice(sceneConfig.getRawString());
          for (auto& e : sceneConfig["orderedGraph"]) {
@@ -52,16 +51,22 @@ void ofApp::setup3D() {
               ofLogNotice("adding id" ) << id;
               shader.loadShaderFiles( "shaders/shader.vert", file);
               graph[id] = shader;
+
+              if (e.isMember("slot")) {
+                  threeShaderLayers[e["slot"].asInt()] = shader;
+                }
+              for (auto& ex : e["addresses"]) {
+                  addressMap[ex.asString()] = id;
+                }
               nodeOrder.push_back(id);
-              // after rendering node, store texture under nodes own id (so only one copy)
-              // when rendering node, look at node's dependencies; for each of those, get the fbo
-              // textureCount[id] = outEdges;
-              // subtract from texturecount map
-              // when subtracted, delete key from dict
              }
-         } 
+         // TODO: if (endsWith(file, "png") {
+         //       img.loadImage("3D/pikachu.png");
+           // [move down here] nodeOrder.push_back(id);
+         //     }
+         }
          if (!use3D) return;
-         ofLogNotice("ofApp::setup") << sceneConfig.getRawString();
+
          model.loadModel(sceneConfig["model"].asString());
          ofLoadImage(modelTex, sceneConfig["textureImage"].asString());
          mesh = model.getMesh(0);
@@ -187,24 +192,17 @@ void ofApp::setup(){
         ofClearAlpha();
     fbo.end();
 
-    int MAX_SHADERS = 6;
-    vector<Id> tmpIds { "0", "1", "2", "3", "4", "5" };
-    for (int i = 0; i < MAX_SHADERS; i++) {
-      shaderNode shader;
-      shader.setup();
-      shaderMap.push_back(shader);
-    }
     // 3d setup
+    // TODO: not be hardcoded here
     sceneConfigPath = "3D/scene.json";
-    setup3D();
-    toggleMike = true;
+    setupGraph();
 }
 
-void ofApp::printStatus() {
-  for (auto& p : nodes) {
-    ofLog( OF_LOG_NOTICE, p.first + "  "  +  p.second.id + "  " +   ofToString(p.second.isActive)); // ofDrawBitmapString("Hello there.", 10, 10);
- }
-}
+//void ofApp::printStatus() { // see detour.h
+//  for (auto& p : nodes) {
+//    ofLog( OF_LOG_NOTICE, p.first + "  "  +  p.second.id + "  " +   ofToString(p.second.isActive)); // ofDrawBitmapString("Hello there.", 10, 10);
+// }
+//}
 //--------------------------------------------------------------
 void ofApp::update(){
     
@@ -222,7 +220,8 @@ void ofApp::update(){
 
 
   if (use3D) {
-    float utime = shaderMap[0].getTime();
+      // TODO: fix
+    float utime = threeShaderLayers[0].getTime();
     fbo.begin();
     effectShaderInput = true;
     ofEnableDepthTest();	//Enable z-buffering
@@ -282,10 +281,7 @@ void ofApp::draw(){
 }
 
 void ofApp::drawScreen(){
-  // should probably get time once and then pass it around
-  //    for (auto& p : nodes)
-  //        useShader = useShader || p.second.isActive;
-  useShader = (!nodeOrder.empty() && toggleMike);
+    useShader = !nodeOrder.empty();
     // if detour mode then only draw effect now if set to input , otherwise draw this in detour meathod
     if (use3D) effectInput.insert(effectInput.begin(), fbo.getTexture());
     bool drawEffectShader = useShader && ( !isDetour || effectShaderInput);
@@ -312,37 +308,25 @@ void ofApp::drawScreen(){
 }
 
 ofFbo ofApp::applyEffectShaderChain(vector<ofTexture> effectInput){
-  // unordered_map<Id, int> texCount = {};
-  textureCount = {};
-  // ofTexture tex;
+              // after rendering node, store texture under nodes own id (so only one copy)
+              // when rendering node, look at node's dependencies; for each of those, get the fbo
+  textureCount = {}; // unused
                 for (auto id : nodeOrder) {
-                  if (id == "4") {
-                    // in_texture.loadData(in_frame.getData(), in_frame.getWidth(), in_frame.getHeight(), GL_RGB);
-                    // ofPixels pixels = img.getPixels();
-                    // detour_texture.loadData(pixels.getData(), pixels.getWidth(), pixels.getHeight(), GL_RGB);
-                    img.draw(0, 0, ofGetWidth(), ofGetHeight());
-                    effectInput.insert(effectInput.begin(), img.getTexture());
-                    // fbo.begin();  fbo.end(); effectInput.insert(effectInput.begin(), img.getTextureReference());
-                  }
-                  else {
-                  
-                    // might be better off using/implementing `getTexture` for the nodes
-                    
-                    // fbo = shaderMap[id].apply(effectInput);
-                    // shaderNode n  = (shaderNode) *graph[id];
+                    // TODO:
+                    // (check & dispatch for i.e. static image, etc.
+                    // img.draw(0, 0, ofGetWidth(), ofGetHeight());
+                    // effectInput.insert(effectInput.begin(), img.getTexture());
                     for (auto& s : (graph[id].getDeps()) ) {
-                      ofLogNotice("inserting texture for dep " + s);
-                      // effectInput.push_back(textureMap[s]);
-                      effectInput.insert(effectInput.begin(), (textureMap[s]));
-                      ofLogNotice("inserting texture for dep " + s + " "  + ofToString(effectInput.size()));
+                      effectInput.insert(effectInput.begin(), (textureMap[s])); // effectInput.push_back(textureMap[s]); equivalent?
                       // textureCount[s]--;
                     }
                       fbo = graph[id].apply(effectInput);
-                      // tex = fbo.getTexture();
                       textureMap[id] = fbo.getTexture();
                       // tex = graph[id].render(ofGetWidth(), ofGetHeight(), effectInput);
-                    // 
-                    // int texUses = graph[id]->outEdges;
+                      // track when a texture is no longer needed and release it from memory then:
+              // subtract from texturecount map
+              // when zero, delete key from textureMap
+                    // int texUses = graph[id].outEdges;
                     // textureMap[id] = tex;
                     //                    if ( texUses > 0 ) {
                     //                      textureCount[id] = texUses;
@@ -351,11 +335,7 @@ ofFbo ofApp::applyEffectShaderChain(vector<ofTexture> effectInput){
                     //                    for (auto& s : graph[id]->deps) {
                     //                      // delete textureMap[s]
                     //                    }
-
-
-                      // effectInput.insert(effectInput.begin(), fbo.getTexture());
                   }
-               }
     return fbo;
   }
 
@@ -551,42 +531,46 @@ void ofApp::receiveMessages(){
         else if(m.getAddress() == "/player/c/get_position"){
             sendFloatMessage("/player/c/position", cPlayer.getPosition());
         }
+     //   else if (addressMap.find(m.getAddress()) != addressMap.end()) {
+     //       if (m.getArgTypeName() == "string")
+     //       shader addressMap[ m.getAddress() ]
+     //     }
         else if(m.getAddress() == "/shader/0/load"){
             ofLog() << "loading shader 0 now !!!!";
-            shaderMap[0].loadShaderFiles(m.getArgAsString(0), m.getArgAsString(1));
+            threeShaderLayers[0].loadShaderFiles(m.getArgAsString(0), m.getArgAsString(1));
             }
         else if(m.getAddress() == "/shader/1/load"){
-            shaderMap[1].loadShaderFiles(m.getArgAsString(0), m.getArgAsString(1));
+            threeShaderLayers[1].loadShaderFiles(m.getArgAsString(0), m.getArgAsString(1));
             }
         else if(m.getAddress() == "/shader/2/load"){
-            shaderMap[2].loadShaderFiles(m.getArgAsString(0), m.getArgAsString(1));
+            threeShaderLayers[2].loadShaderFiles(m.getArgAsString(0), m.getArgAsString(1));
             }
         else if(m.getAddress() == "/shader/3/load"){
-            shaderMap[3].loadShaderFiles(m.getArgAsString(0), m.getArgAsString(1));
+            threeShaderLayers[3].loadShaderFiles(m.getArgAsString(0), m.getArgAsString(1));
             }
         else if(m.getAddress() == "/shader/0/param"){
-            shaderMap[0].shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
+            threeShaderLayers[0].shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
         }
         else if(m.getAddress() == "/shader/1/param"){
-            shaderMap[1].shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
+            threeShaderLayers[1].shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
         }
         else if(m.getAddress() == "/shader/2/param"){
-            shaderMap[2].shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
+            threeShaderLayers[2].shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
         }
         else if(m.getAddress() == "/shader/3/param"){
-            shaderMap[3].shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
+            threeShaderLayers[3].shaderParams[m.getArgAsInt(0)] = m.getArgAsFloat(1);
         }
         else if(m.getAddress() == "/shader/0/speed"){
-            shaderMap[0].setSpeed(m.getArgAsFloat(0));
+            threeShaderLayers[0].setSpeed(m.getArgAsFloat(0));
         }
         else if(m.getAddress() == "/shader/1/speed"){
-            shaderMap[1].setSpeed(m.getArgAsFloat(0));
+            threeShaderLayers[1].setSpeed(m.getArgAsFloat(0));
         }
         else if(m.getAddress() == "/shader/2/speed"){
-            shaderMap[2].setSpeed(m.getArgAsFloat(0));
+            threeShaderLayers[2].setSpeed(m.getArgAsFloat(0));
         }
         else if(m.getAddress() == "/shader/3/speed"){
-            shaderMap[3].setSpeed(m.getArgAsFloat(0));
+            threeShaderLayers[3].setSpeed(m.getArgAsFloat(0));
         }
         else if(m.getAddress() == "/shader/start"){
             useShader = true;
@@ -594,26 +578,16 @@ void ofApp::receiveMessages(){
         else if(m.getAddress() == "/shader/stop"){
             useShader = false;
         }
-        //        else if(m.getAddress() == "/shader/420/is_active"){
-        //            ofLog() << "shader0 is active : " << m.getArgAsBool(0);
-        //        }
-        else if(m.getAddress() == "/shader/420/load"){
-          toggleMike = true; // m.getArgAsBool(0);
-          for (auto& p: graph) {
-            // p.second.loadShaderFiles("shaders/shader.vert", "shaders/hypnotic_rings.frag");
-          for (int i = 0; i < 4; i++) { 
-          p.second.shaderParams[i] = 0.5;
-            }
-          }
-        }
-        else if(m.getAddress() == "/shader/420/param"){
-        }
-        //        else if(m.getAddress() == "/shader/1/is_active"){
-        //            effectShader1active = m.getArgAsBool(0);
-        //        }
-        //        else if(m.getAddress() == "/shader/2/is_active"){
-        //            effectShader2active = m.getArgAsBool(0);
-        //        }
+        // don't need these because everything in the graph gets rendered (could change that I guess)
+//        else if(m.getAddress() == "/shader/1/is_active"){
+//            effectShader1active = m.getArgAsBool(0);
+//        }
+//        else if(m.getAddress() == "/shader/1/is_active"){
+//            effectShader1active = m.getArgAsBool(0);
+//        }
+//        else if(m.getAddress() == "/shader/2/is_active"){
+//            effectShader2active = m.getArgAsBool(0);
+//        }
         else if(m.getAddress() == "/capture/setup"){
             ofLog(OF_LOG_NOTICE, "setting up the capture type" + m.getArgAsString(0) );
             captureType = m.getArgAsString(0);
@@ -735,11 +709,11 @@ else if(m.getAddress() == "/detour/set_mix"){
             ofExit();
         }
         else if(m.getAddress() == "/scene/reload3DConfig"){
-          setup3D();
+          setupGraph();
         }
         else if(m.getAddress() == "/scene/new3DConfig"){
           sceneConfigPath = m.getArgAsString(0);
-          setup3D();
+          setupGraph();
         }
         else if(m.getAddress() == "/scene/shader/param"){
             modelUniforms[m.getArgAsInt(0)] = m.getArgAsFloat(1);
@@ -778,33 +752,35 @@ else if(m.getAddress() == "/detour/set_mix"){
           ofRotationAngle = m.getArgAsFloat(0);
         }
         else if(m.getAddress() == "/graph"){
-          Id id = m.getArgAsString(1);
+            ofLogNotice("INACTIVE IS /graph");
+          }
+        else {
+
+            // string addr;
+            if (addressMap.find(m.getAddress()) != addressMap.end() ) {
+                string id = addressMap[m.getAddress()];
           // ofxNode node = nodes[id];
-          actionMap actions = { { { "LOAD_FILE", LOAD_FILE}, 
-                                  {"UPDATE_UNIFORM", UPDATE_UNIFORM},
-                                  {"TOGGLE_ACTIVE", TOGGLE_ACTIVE} } };
+            //TODO: Fixme
+          string DEFAULT_VERT_SHADER = "shaders/shader.vert";
           Action cmd = actions[m.getArgAsString(0)];
+          string vertShader;
   switch (cmd) {
     case LOAD_FILE:
-     nodes[id].shader.loadShaderFiles(m.getArgAsString(2), m.getArgAsString(3));
-     nodes[id].attr["vertFile"] = m.getArgAsString(2);
-     nodes[id].attr["fragFile"] = m.getArgAsString(3);
-     ofLog(OF_LOG_NOTICE, "shader id " + ofToString(id) + " loaded " + m.getArgAsString(2) + " and " + m.getArgAsString(3));
+     vertShader = (m.getNumArgs() < 3) ? DEFAULT_VERT_SHADER : m.getArgAsString(2);
+     graph[id].loadShaderFiles(m.getArgAsString(1), vertShader);
      break;
   case UPDATE_UNIFORM:
-    nodes[id].shader.shaderParams[ m.getArgAsInt(2) ] = m.getArgAsFloat(3);
-    ofLog(OF_LOG_NOTICE, "params for " + ofToString(nodes[id].id) + " loaded " +ofToString( m.getArgAsInt(2) ) + " to " + ofToString( m.getArgAsFloat(3)) + "of node id " + id );
-    // node.shader.shaderParams[ m.getArgAsString(2) ] = m.getArgAsFloat(1);
+    graph[id].shaderParams[ m.getArgAsInt(1) ] = m.getArgAsFloat(2);
     break;
-  case TOGGLE_ACTIVE:
-    nodes[id].isActive =  m.getArgAsBool(2); //  !nodes[id].isActive;
-    // ofLog(OF_LOG_NOTICE, ofToString(node.id) + " it's active");
-    
-    break;
+// meaningless b/c
+//  case TOGGLE_ACTIVE:
+//    nodes[id].isActive =  m.getArgAsBool(2); //  !nodes[id].isActive;
+//    break;
   default:
     ofLog(OF_LOG_NOTICE, "the m (mesage) is " + ofToString(m));
     throw std::runtime_error("Bad message");
  }
+              }
 
         }
 
