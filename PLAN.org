@@ -775,7 +775,7 @@ MEANINGFUL_ATTRIBUTES = { 'slot' }
 for d in ds:
   meta = gm.nodes[d[id]]
   for attr in ( MEANINGFUL_ATTRIBUTES & meta.keys() ):
-    if not (attr in meta):
+    if not (attr in d): # don't overwrite
        d[attr] = meta[attr]
 
 print(json.dumps(ds, indent=4))
