@@ -816,7 +816,7 @@ print(json.dumps(ds, indent=4))
 
 Other Node operations
 Use with e.g. pysound to create audioreactivity etc.
-#+BEGIN_SRC python :results raw
+#+BEGIN_SRC python :results raw :session
 import random, math, operator
 from functools import partial
 
@@ -857,12 +857,15 @@ print( handle(G, RG, 'u_x0') )
 
 #+END_SRC
 
+#+RESULTS:
 
+
+one could swap out `get_func` above with whatever, and have it generate /commands/ rather than perform them
 
 
 Other things
 
-#+BEGIN_SRC python
+#+BEGIN_SRC python :results raw :session
 
 def get_arity(s): 
     if s.lower().startswith( ('chroma', 'luma', 'othermix') ) :
@@ -879,3 +882,87 @@ ds = [ {"file" : f"shaders/{k}.frag",
         }
  for k in ns]
 #+END_SRC
+
+
+* Feb 7
+** Polymorphism
+i.e. 
+#+BEGIN_SRC cpp
+typedef mpark::variant<ofImage,ofShader,recurVideoPlayer,captur,ofLight> recurValue;
+struct renderVisitor {
+    ofTexture operator()(ofImg img) 
+}
+int result = mpark::visit( simpleVisitor{}, u );
+#+END_SRC
+
+shader nodes which are in the slots (shader layers) need a special label so that they can be updated when the existing OSC hooks are called
+the JSON generaed from the graph parse includes the OSC addresses (guaranteeing consistency) so the OF side just has to add the hook
+alternatively something like below, which is useful for validating the graph
+you could make secret OSC addresses for more or less /all/ nodes, allowing their output value to be over-written by the user
+but here we just generate from default/const nodes
+
+There is a metadata representation of shaders, image textures, etc. that is worth considering seperately from
+the graph representation. 
+That metadata is easily represented in struct/namedtuples/dataclasses
+You can use this metadata to check the integrity of the graph (for example: a shader (or other node) should always have exactly as many incoming edges as it can [considering default values as incoming edges of `Const` nodes. You can also check the types and match them up, etc.
+#+BEGIN_SRC python :result raw :session
+from toolz import dicttoolz as dtz
+from dataclasses import dataclass, field
+@dataclass
+class Shader:
+  id: str
+  u_x0: float = 0
+  u_x1: float = 0
+  u_x2: float = 0
+  u_x3: float = 0
+
+class GenShader(Shader): ...
+
+class Shader1(Shader):
+ u_tex0: Texture
+
+class Shader2(Shader1):
+ u_tex1: Texture
+
+sh = Shader("hypnotic_rings", 0.5, 0.5) # some new defaults
+
+# would expand to a [sub]graph like so:
+G.add_node(sh.id) # terminus
+for attr, v in dtz.dissoc(sh.__dict__, 'id').items():
+   G.add_node(attr, value=v)
+   G.add_edge(attr, sh.id)
+
+
+def make_addresses(id):
+  incoming = RG[id]
+  # get nodetype via label on original dot file or extrapolation afterwards
+  address = [] 
+  for inEdge in incoming:
+    default = RG.nodes[inEdge].get('value'):
+    if not (default is None):
+      # we'll tell what type for OF to parse the thing as too I guess
+      addresses.append( (f"/{nodeType}/{id}/{inEdge}/", type(default)) ) # i.e. "/shader/hypnotic_frag/u_x0"
+      # basically the input id is equivalent to an edge label or the target node's attribute
+      slot =  RG.nodes[id].get('slot')
+      if not (slot is None):
+         address.append( (f"/{nodeType}/{slot}/{inEdge}", type(default) ) ) # i.e. "/shader/0/u_x0"
+   return addresses 
+
+  # nodeType = id.lower().strip( set(string.printable) - set(string.ascii_letters) )
+#+END_SRC
+
+** Continuing Work
+This branch has a little proof of concept using only textures. OSC needs to be plumbed.
+The following nodes need to be handled to catch up with recur:
+ - video player nodes
+ - uniform 'nodes' (via OSC plumbing)
+Other nodes:
+ - static image nodes (this requires no effort really)
+ - compute nodes (e.g., using time) -- works once we have osc dispatching
+ - 3D rendering nodes
+
+Currently conjur loads a json file (`scene.json`) at setup which determines the shader order and will determine parameter setup. 
+Modular-style stuff:
+ - it would be neat to do wave-forms, randomness and audio-reactivity through the graph; this requires processing the graph itself in either python or OF. 
+ - To do this in python requires programmatic OSC dispatch of attributes: right now that's setting uniforms and file loading. We could have python loop over the graph ever 100ms 'tick' and send its OSC, I suggest uniforms be sent via regular OSC, whereas changing the graph structure requires a reload of the json. (could be via osc)
+ - if you do the processing in OF (you could do it in both/either and send stuff back and forth via osc) you can use OpenCV to do stuff like video-reactive audio
