@@ -767,7 +767,7 @@ else if(m.getAddress() == "/detour/set_mix"){
   switch (cmd) {
     case LOAD_FILE:
      vertShader = (m.getNumArgs() < 3) ? DEFAULT_VERT_SHADER : m.getArgAsString(2);
-     graph[id].loadShaderFiles(m.getArgAsString(1), vertShader);
+     graph[id].loadShaderFiles( vertShader, m.getArgAsString(1));
      break;
   case UPDATE_UNIFORM:
     graph[id].shaderParams[ m.getArgAsInt(1) ] = m.getArgAsFloat(2);
