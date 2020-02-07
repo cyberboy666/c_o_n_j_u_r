@@ -19,13 +19,69 @@
     "ofScale"  : [50, 50, 50],
     "ofRotationAngle" : 10,
     "textureOrder" : [ 0, 3, 4, 1, 2],
-    "orderedGraph" : [
-        {"file" : "",
-         "arity" : 0,
-         "id" : "0",
-         "outEdges" : 2,
-         "inTextures" : ["1", "2"]
+    "orderedGraph" : 
+[
+    {
+        "file": "shaders/hypnotic_rings.frag",
+        "arity": 1,
+        "id": "hypnotic_rings",
+        "outEdges": 1,
+        "inTextures": []
+    },
+    {
+        "file": "shaders/invert.frag",
+        "arity": 1,
+        "id": "wobble",
+        "outEdges": 1,
+        "inTextures": [
+            "hypnotic_rings"
+        ]
+    },
+    {
+        "file": "shaders/invert.frag",
+        "arity": 1,
+        "id": "mirrorX",
+        "outEdges": 1,
+        "inTextures": [
+            "wobble"
+        ]
+    },
+    {
+        "file": "shaders/line.frag",
+        "arity": 1,
+        "id": "line",
+        "outEdges": 1,
+        "inTextures": []
+    },
+    {
+        "file": "shaders/wipe.frag",
+        "arity": 1,
+        "id": "wipe",
+        "outEdges": 1,
+        "inTextures": [
+            "mirrorX",
+            "line"
+        ]
+    },
+    {
+        "file": "shaders/invert.frag",
+        "arity": 1,
+        "id": "invert2",
+        "outEdges": 1,
+        "inTextures": [ "wipe"
+        ]
+    },
+    {
+        "file": "shaders/wipe.frag",
+        "arity": 1,
+        "id": "wipe2",
+        "outEdges": 1,
+        "inTextures": [
+            "invert2",
+            "hypnotic_rings"
+        ]
+    }
+    
+]
 
-        }
-    ]
 }
