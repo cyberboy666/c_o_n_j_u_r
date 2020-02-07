@@ -91,7 +91,7 @@ public:
 enum Action {LOAD_FILE, NOTHING, UPDATE_UNIFORM, ROTATE, TOGGLE_ACTIVE };
 typedef unordered_map<Id, ofxNode> Nodemap;
 typedef unordered_map<Id, Action> actionMap;
-typedef unordered_map<Id, conjur> recurGraph;
+typedef unordered_map<Id, shaderNode> recurGraph;
 // shaderMap shaders;
 // typedef unordered_map<Id, ofxAutoReloadedShader> shaderMap;
 // typedef unordered_map<Id, string> OSCmap;
@@ -188,7 +188,7 @@ class ofApp : public ofBaseApp{
     conjur mixShader;
     ofImage img;
   // unordered_map<int, conjur> shaderMap;
-    vector<conjur> shaderMap;
+    vector<shaderNode> shaderMap;
   unordered_map<Id, ofTexture> textureMap;
   unordered_map<Id, int> textureCount;
   //    conjur effectShader0;

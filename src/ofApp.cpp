@@ -27,10 +27,6 @@ void ofApp::setup3D() {
   // "textureOrder" : [ "shaders/hypnotic_rings.frag", "shaders/line.frag", "shaders/wipe.frag"]
       bool parsingSuccessful = sceneConfig.open(sceneConfigPath);
             if (parsingSuccessful) {
-      //         for (auto x : sceneConfig["textureOrder"]) { 
-      //           nodeOrder.push_back(x.asInt());
-      //         }
-         // TODO: could be .load
          img.loadImage("3D/pikachu.png");
          use3D = sceneConfig["enable"].asBool();
          ofLogNotice(sceneConfig.getRawString());
@@ -39,30 +35,23 @@ void ofApp::setup3D() {
            string id = e["id"].asString(); 
            if (endsWith(file, ".frag")) {
               fragType ft = (fragType) e["arity"].asInt();
-              // auto v_ = e.find("vertex");
-              // string vertFile =  (v_ != e.end()) ? v_ : DEFAULT_VERT_SHADER;
-              conjur shader;
-              //
-              string vertFile = "shaders/shader.vert"; // DEFAULT_VERT_SHADER;  //TODO:  (e["vertexFile"].asString());
+              string vertFile;
+              if (e.isMember("vertex")) {
+                  vertFile = e["vertex"].asString();
+                }
+              else  vertFile = "shaders/shader.vert"; // DEFAULT_VERT_SHADER;  //TODO:  (e["vertexFile"].asString());
+              shaderNode shader;
               int outEdges = e["outEdges"].asInt();
               vector<string> dependencies;
               for (auto&s : e["inTextures"]) {
                 dependencies.push_back(s.asString());
                 ofLogNotice("pushing dep " ) << s.asString();
               }
-              //shaderNode n;
-              //n.build(shader, ft, outEdges, dependencies);
-              // textureUsageMap[id] = outEdges;
               shader.setup();
               shader.graphSetup(dependencies);
               ofLogNotice("adding id" ) << id;
               shader.loadShaderFiles( "shaders/shader.vert", file);
-              // graph[id] = n;
               graph[id] = shader;
-              //              shader.deps = dependencies;
-              //              shader.inputs = ft;
-              //              shader.outEdges = outEdges;
-              
               nodeOrder.push_back(id);
               // after rendering node, store texture under nodes own id (so only one copy)
               // when rendering node, look at node's dependencies; for each of those, get the fbo
@@ -70,7 +59,6 @@ void ofApp::setup3D() {
               // subtract from texturecount map
               // when subtracted, delete key from dict
              }
-           // nodeOrder.insert(nodeOrder.begin(), id);
          } 
          if (!use3D) return;
          ofLogNotice("ofApp::setup") << sceneConfig.getRawString();
@@ -78,23 +66,16 @@ void ofApp::setup3D() {
          ofLoadImage(modelTex, sceneConfig["textureImage"].asString());
          mesh = model.getMesh(0);
          for (int i = 0; i < 3; i++) {
-           ofLog(OF_LOG_NOTICE, "cam " + ofToString(i));
             cameraPosition[i] =  sceneConfig["camera"]["position"][i].asInt();
-           ofLog(OF_LOG_NOTICE, "transmod " + ofToString(i));
             sceneTranslation[i] =  sceneConfig["ofTranslationMod"][i].asInt();
-           ofLog(OF_LOG_NOTICE, "rotate " + ofToString(i));
             ofRotation[i] = sceneConfig["ofRotate"][i].asInt(); // { 0, 1, 0 };
-           ofLog(OF_LOG_NOTICE, "lightcolor " + ofToString(i));
             lightColor[i] = sceneConfig["light"]["color"][i].asInt();
-           ofLog(OF_LOG_NOTICE, "scaler " + ofToString(i));
            ofScaler[i] = sceneConfig["ofScaler"][i].asFloat();
          }
          cameraDistance = sceneConfig["camera"]["distance"].asFloat();
          ofRotationAngle = sceneConfig["ofRotationAngle"].asFloat();
-  
-       modelShader.load(sceneConfig["vertShader"].asString(), sceneConfig["fragShader"].asString());
- 
-        lightOn = sceneConfig["light"]["on"].asBool();
+         modelShader.load(sceneConfig["vertShader"].asString(), sceneConfig["fragShader"].asString());
+         lightOn = sceneConfig["light"]["on"].asBool();
          lightTiedToCamera = sceneConfig["light"]["tiedToCamera"].asBool();
          // TODO: uncomment and replace
          // camera.setDistance(cameraDistance);
@@ -182,20 +163,6 @@ void ofApp::setup(){
 
     // effectShader0.setup(); effectShader1.setup(); effectShader2.setup();
     // effectShader0active = false; effectShader1active = false; effectShader2active = false;
-
-
-
-
-    //    vector<Id> tmpIds { "A", "B", "C", "D", "E" };
-    //    for (auto id : tmpIds) {
-    //      nodeOrder.push_back(id);
-    //      conjur shader;
-    //      shader.setup();
-    //      Attributes unis {  { {"u_x0", "bully"}, {"u_x1", "bully"}, {"u_x2", "bully"}, {"u_x3", "bully"}}};
-    //      ofxNode node { unis, id, shader, false};
-    //      nodes[id] = node;
-    //      }
-
     effectInput = {};
     
     in_texture.allocate(ofGetWidth(), ofGetHeight(), GL_RGB);
@@ -223,7 +190,7 @@ void ofApp::setup(){
     int MAX_SHADERS = 6;
     vector<Id> tmpIds { "0", "1", "2", "3", "4", "5" };
     for (int i = 0; i < MAX_SHADERS; i++) {
-      conjur shader;
+      shaderNode shader;
       shader.setup();
       shaderMap.push_back(shader);
     }
@@ -319,8 +286,6 @@ void ofApp::drawScreen(){
   //    for (auto& p : nodes)
   //        useShader = useShader || p.second.isActive;
   useShader = (!nodeOrder.empty() && toggleMike);
-    // useShader = effectShader0active || effectShader1active || effectShader2active;
-
     // if detour mode then only draw effect now if set to input , otherwise draw this in detour meathod
     if (use3D) effectInput.insert(effectInput.begin(), fbo.getTexture());
     bool drawEffectShader = useShader && ( !isDetour || effectShaderInput);
@@ -351,13 +316,6 @@ ofFbo ofApp::applyEffectShaderChain(vector<ofTexture> effectInput){
   textureCount = {};
   // ofTexture tex;
                 for (auto id : nodeOrder) {
-                  ///   for (auto& p : graph) {
-                  ///     ofLogNotice(p.first + " found in graph ");
-                  ///     ofLogNotice( id + " " + ofToString(p.first == id) + " found in graph ");
-                  ///  }
-                  // shaderNode nx = (shaderNode) *(graph[id]);
-                  //                  for (auto& x : graph[id]->deps) {
-                  //                  }
                   if (id == "4") {
                     // in_texture.loadData(in_frame.getData(), in_frame.getWidth(), in_frame.getHeight(), GL_RGB);
                     // ofPixels pixels = img.getPixels();
