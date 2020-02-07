@@ -12,16 +12,32 @@ Project{
         name: { return FileInfo.baseName(sourceDirectory) }
 
         files: [
-            'src/main.cpp',
-            'src/ofApp.cpp',
-            'src/ofApp.h',
+            "src/exp.cpp",
+            "src/main.cpp",
+            "src/ofApp.cpp",
+            "src/ofApp.h",
+            "src/recurnode.cpp",
+            "src/recurnode.h",
+            "src/variant.hpp",
         ]
+
+        cpp.compilerWrapper: 'ccache'
 
         // This project is using addons.make to include the addons
         // since it was imported from old code. To change it to include
         // the addons from the qbs file change the following lines to
         // the list of used addons in array format. eg:
         //
+           of.addons: [
+           'ofxOsc',
+'ofxXmlSettings',
+'ofxVideoArtTools',
+'ofxVideoRecorder',
+'ofxAutoReloadedShader',
+'ofxAssimpModelLoader',
+'ofxPoco',
+'ofxMidi',
+'ofxJSON']
         // of.addons: [
         //     'ofxGui',
         //     'ofxOpenCv',

@@ -1,30 +1,8 @@
 digraph G {
-	graph [bb="0,0,166.39,324"];
-	node [label="\N"];
-	{
-		hypnotic_rings		 [height=0.5,
-			pos="100.8,306",
-			width=1.8054];
-		invert		 [height=0.5,
-			pos="107.8,90",
-			width=0.88464];
-	}
-	mirror	 [height=0.5,
-		pos="33.797,234",
-		width=0.93881];
-	hypnotic_rings -> mirror	 [pos="e,49.25,250.61 84.235,288.2 75.796,279.13 65.41,267.97 56.261,258.14"];
-	luma	 [height=0.5,
-		pos="137.8,18",
-		width=0.79437];
-	hypnotic_rings -> luma	 [pos="e,143.3,35.779 122.01,288.86 132.2,279.24 143.36,266.3 148.8,252 175.56,181.61 157.85,90.634 146.01,45.671"];
-	wipe	 [height=0.5,
-		pos="107.8,162",
-		width=0.79437];
-	mirror -> wipe	 [pos="e,92.18,177.2 50.22,218.02 60.391,208.12 73.605,195.27 84.807,184.37"];
-	wipe -> invert	 [pos="e,107.8,108.41 107.8,143.83 107.8,136.13 107.8,126.97 107.8,118.42"];
-	line	 [height=0.5,
-		pos="112.8,234",
-		width=0.75];
-	line -> wipe	 [pos="e,109.08,180.41 111.54,215.83 111,208.13 110.36,198.97 109.77,190.42"];
-	invert -> luma	 [pos="e,130.47,35.593 115.21,72.202 118.63,64.006 122.75,54.102 126.54,45.015"];
+hypnotic_rings [slot=0];
+mirror [slot=1];
+luma [slot=2];
+hypnotic_rings -> mirror -> wipe;
+line -> wipe -> invert;  
+{hypnotic_rings, invert} -> luma;
 }

@@ -733,17 +733,20 @@ std::cout << "hi";
 
 
 * Feb 6
+
+*** Simple Recur Graph
 #+BEGIN_SRC dot :file simple.dot
 digraph G {
+hypnotic_rings [slot=0];
+mirror [slot=1];
+luma [slot=2];
 hypnotic_rings -> mirror -> wipe;
 line -> wipe -> invert;  
 {hypnotic_rings, invert} -> luma;
 }
 #+END_SRC
 
-#+RESULTS:
-[[file:simple.dot]]
-
+*** Dot To JSON
 Dot to json which goes into scene.json
 
 #+BEGIN_SRC python :session :results output
@@ -763,9 +766,17 @@ ds = [ {"file" : f"shaders/{k}.frag",
          # "arity" : get_arity(k), # unused
          "id" : k,
          "outEdges" : len(gm[k]), # unused
-         "inTextures" :  list(gm.predecessors(k))
+         "inTextures" :  list(gm.predecessors(k)),
+         "addresses" : [ f"{shader/{k}" ] # slot addresses are hidden
         }
  for k in ns]
+
+MEANINGFUL_ATTRIBUTES = { 'slot' }
+for d in ds:
+  meta = gm.nodes[d[id]]
+  for attr in ( MEANINGFUL_ATTRIBUTES & meta.keys() ):
+    if not (attr in meta):
+       d[attr] = meta[attr]
 
 print(json.dumps(ds, indent=4))
 
@@ -905,6 +916,38 @@ There is a metadata representation of shaders, image textures, etc. that is wort
 the graph representation. 
 That metadata is easily represented in struct/namedtuples/dataclasses
 You can use this metadata to check the integrity of the graph (for example: a shader (or other node) should always have exactly as many incoming edges as it can [considering default values as incoming edges of `Const` nodes. You can also check the types and match them up, etc.
+
+
+
+** Continuing Work
+This branch has a little proof of concept using only textures. OSC needs to be plumbed.
+*** Nodes
+    The following nodes need to be handled to catch up with recur:
+ - video player nodes
+ - uniform 'nodes' (via OSC plumbing)
+Other nodes:
+ - static image nodes (this requires no effort really)
+ - compute nodes (e.g., using time) -- works once we have python osc dispatching [[Modular-style stuff]]
+ - 3D rendering nodes
+   
+Currently conjur loads a json file (`scene.json`) at setup which determines the shader order and will determine parameter setup. 
+
+*** Modular-style stuff
+ - it would be neat to do wave-forms, randomness and audio-reactivity through the graph; this requires processing the graph itself in either python or OF. 
+ - To do this in python requires programmatic OSC dispatch of attributes: right now that's setting uniforms and file loading. We could have python loop over the graph ever 100ms 'tick' and send its OSC, I suggest uniforms be sent via regular OSC, whereas changing the graph structure requires a reload of the json. (could be via osc)
+ - if you do the processing in OF (you could do it in both/either and send stuff back and forth via osc) you can use OpenCV to do stuff like video-reactive audio. however you have to implement it in C++, and you put more logic in the update/draw loop which is bad. Also the python implementation of this is already much of the way there because of the plugin work.
+   
+   
+*** Usage
+Create a dot graph  as in [[Simple Recur Graph]], then use the code in [[Dot To JSON][Dot To JSON]] to topologically sort the graph and dump it as a JSON array. Notice how this generates OSC addresses; they work differently than what the shader layers use; they expect a command (see ofApp.cpp `actions`, and then two floats for uniforms as normal or one/two strings for loading the shader. If you use the normal 3 shader layers, you can use the normal OSC addresses and that should work as normal (untested). (except: I revoked the ability to toggle individual shaders on/off, because that would break the graph structure.) If you want to use the existing 3 shader layers, give a node in your graph the `slot` label, as I do in the above example. Then take your JSON and fill in [[file::bin/data/3D/scene.json]] field `orderedGraph`. 
+Right now, the rest of that JSON document is ignored (including 'textureOrder'), except for `enable: false`, which actually disables the /3D/ functionality, not the graph.
+
+* Building on the Pi
+You will have to restor addons.make to its original state; you'll have to roll back changes in `main.cpp` that shouldn't be in there, you may have to fiddle the fbo initiation color settings, and you will want to avoid the shaders in this fork because they are goofed up. 
+All that should be taken from the branch at this point are the source files (all in `src/`) and bin/data/3D/scene.json, which needs to be placed on the conjur-relative path "3D/scene.json" or have its path changed in the setup function.
+
+**** other stuff
+
 #+BEGIN_SRC python :result raw :session
 from toolz import dicttoolz as dtz
 from dataclasses import dataclass, field
@@ -931,8 +974,9 @@ G.add_node(sh.id) # terminus
 for attr, v in dtz.dissoc(sh.__dict__, 'id').items():
    G.add_node(attr, value=v)
    G.add_edge(attr, sh.id)
-
-
+#+END_SRC
+#+NAME 
+#+BEGIN_SRC python
 def make_addresses(id):
   incoming = RG[id]
   # get nodetype via label on original dot file or extrapolation afterwards
@@ -950,19 +994,3 @@ def make_addresses(id):
 
   # nodeType = id.lower().strip( set(string.printable) - set(string.ascii_letters) )
 #+END_SRC
-
-** Continuing Work
-This branch has a little proof of concept using only textures. OSC needs to be plumbed.
-The following nodes need to be handled to catch up with recur:
- - video player nodes
- - uniform 'nodes' (via OSC plumbing)
-Other nodes:
- - static image nodes (this requires no effort really)
- - compute nodes (e.g., using time) -- works once we have osc dispatching
- - 3D rendering nodes
-
-Currently conjur loads a json file (`scene.json`) at setup which determines the shader order and will determine parameter setup. 
-Modular-style stuff:
- - it would be neat to do wave-forms, randomness and audio-reactivity through the graph; this requires processing the graph itself in either python or OF. 
- - To do this in python requires programmatic OSC dispatch of attributes: right now that's setting uniforms and file loading. We could have python loop over the graph ever 100ms 'tick' and send its OSC, I suggest uniforms be sent via regular OSC, whereas changing the graph structure requires a reload of the json. (could be via osc)
- - if you do the processing in OF (you could do it in both/either and send stuff back and forth via osc) you can use OpenCV to do stuff like video-reactive audio
