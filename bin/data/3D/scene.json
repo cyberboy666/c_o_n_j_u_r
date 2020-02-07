@@ -20,12 +20,52 @@
     "ofRotationAngle" : 10,
     "textureOrder" : [ 0, 3, 4, 1, 2],
     "orderedGraph" : [
-        {"file" : "",
-         "arity" : 0,
-         "id" : "0",
-         "outEdges" : 2,
-         "inTextures" : ["1", "2"]
-
-        }
+    {
+        "file": "shaders/line.frag",
+        "id": "line",
+        "inTextures": [],
+        "addresses": [
+            "shader/line"
+        ]
+    },
+    {
+        "file": "shaders/hypnotic_rings.frag",
+        "id": "hypnotic_rings",
+        "inTextures": [],
+        "addresses": [
+            "shader/hypnotic_rings"
+        ]
+    },
+    {
+        "file": "shaders/mirror.frag",
+        "id": "mirror",
+        "inTextures": [
+            "hypnotic_rings"
+        ],
+        "addresses": [
+            "shader/mirror"
+        ]
+    },
+    {
+        "file": "shaders/wipe.frag",
+        "id": "wipe",
+        "inTextures": [
+            "mirror",
+            "line"
+        ],
+        "addresses": [
+            "shader/wipe"
+        ]
+    },
+    {
+        "file": "shaders/invert.frag",
+        "id": "invert",
+        "inTextures": [
+            "wipe"
+        ],
+        "addresses": [
+            "shader/invert"
+        ]
+    }
     ]
 }
