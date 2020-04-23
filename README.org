@@ -1,0 +1,327 @@
+*** d_a_g
+
+
+
+
+* Graphs
+This is the dot language [[https://en.wikipedia.org/wiki/DOT_(graph_description_language)][Wiki for DOT]] it is well-established, relatively straightforward, and well-supported by users, documenation, and tooling.
+
+This is what dot / graphviz is like.
+#+BEGIN_SRC dot :file recur.png
+digraph G {
+       {0, 1} -> 2 -> 3;
+}
+#+END_SRC
+
+#+BEGIN_SRC dot :file out.dot
+digraph G {
+       4 -> 1;
+       0 -> 3;
+       {1, 3} -> 2;
+}
+#+END_SRC
+#+RESULTS:
+[[file:out.dot]]
+
+
+*** Simple Recur Graph
+Here is a real working example; there is a more ambitious one in IDEAS.org / modularComplex.png
+
+slot is an attribute; what it means for us is, 'put this shader in slot (layer) X' of recur's conjur feature.
+#+BEGIN_SRC dot :file simple.dot
+digraph G {
+hypnotic_rings [slot=0];
+mirror [slot=1];
+luma [slot=2];
+hypnotic_rings -> mirror -> wipe;
+line -> wipe -> invert;  
+{hypnotic_rings, invert} -> luma;
+}
+#+END_SRC
+
+Incoming arrows are texture inputs.
+You could designate uniforms simliarly. `Somefloat` could be generated from any number of sources, most obviously OSC; but then it is branched into parameters for multiple shaders simultaneously, which is awfully convenient. 
+
+
+#+BEGIN_SRC dot
+digraph G {
+ Somefloat -> u_x0 -> hypnotic_rings;
+ Somefloat -> u_x1 -> luma;
+}
+#+END_SRC
+
+You can do more; lets say we have the current time and some sound input volume instead of anonymous float values. We can alter then individually (unary operations) or combine them by bringing them to the same node (binary operations). [note: right now, this model doesn't support operations that are order-sensitive, but you could use DOT's edge labels to signify argument ordering or keyword argument matching.] To perform these operations, you can use python's builtin functions, as if they were stored in the node.
+
+#+BEGIN_SRC dot :file operations.png
+digraph G {
+ time -> sin -> abs;
+ volume -> negate;
+ {negate, abs} -> Multiply;
+}
+#+END_SRC
+is equivalent to:
+#+BEGIN_SRC python
+(abs(  math.sin( time.time() ) ) * ( module.getVolume() * -1) )
+#+END_SRC 
+
+
+*** Dot To JSON
+DOT to json which goes into scene.json
+
+#+BEGIN_SRC python :session :results output
+import networkx as nx
+import json
+
+# get the proper view of our graph
+default_typed_graph = nx.drawing.nx_agraph.read_dot('simple.dot')
+dag = nx.DiGraph(default_typed_graph)
+
+# get a topological sort of the graph's edges
+top_sorted = list(nx.topological_sort(nx.line_graph(dag)))
+
+# remover duplicates and take the source nodes
+ids = []
+for x in top_sorted:
+    if not (x[0] in ids):
+        ids.append(x[0])
+
+dicts = [ {"file" : f"shaders/{id}.frag",
+           "id" : id,
+           "inTextures" :  list(dag.predecessors(k)),
+           "addresses" : [ f"{shader/{id}" ] # Note: slot (layer) addresses are generated on the OF side
+        }
+ for id in ids]
+
+DOT can hold arbitrary attributes 
+MEANINGFUL_ATTRIBUTES = { 'slot' }
+for d in dicts:
+  meta = dag.nodes[d[id]]
+  for attr in ( MEANINGFUL_ATTRIBUTES & meta.keys() ):
+    if not (attr in meta):
+       d[attr] = meta[attr]
+
+print(json.dumps(dicts, indent=4))
+
+#+END_SRC
+
+   
+* Usage
+Create a dot graph  as in [[Simple Recur Graph]], then use the code in [[Dot To JSON][Dot To JSON]] to topologically sort the graph and dump it as a JSON array. Notice how this generates OSC addresses; they work differently than what the shader layers use; they expect a command (see ofApp.cpp `actions`, and then two floats for uniforms as normal or one/two strings for loading the shader. If you use the normal 3 shader layers, you can use the normal OSC addresses and that should work as normal (untested). (except: I revoked the ability to toggle individual shaders on/off, because that would break the graph structure.) If you want to use the existing 3 shader layers, give a node in your graph the `slot` label, as I do in the above example. Then take your JSON and fill in [[file::bin/data/3D/scene.json]] field `orderedGraph`. 
+Right now, the rest of that JSON document is ignored (including 'textureOrder'), except for `enable: false`, which actually disables the /3D/ functionality, not the graph.
+
+** Building on the Pi
+You will have to restor addons.make to its original state; you'll have to roll back changes in `main.cpp` that shouldn't be in there, you may have to fiddle the fbo initiation color settings, and you will want to avoid the shaders in this fork because they are goofed up. 
+All that should be taken from the branch at this point are the source files (all in `src/`) and bin/data/3D/scene.json, which needs to be placed on the conjur-relative path "3D/scene.json" or have its path changed in the setup function.
+For the python side, you will need to install networkx, pygraphviz, and toolz
+
+
+* Continuing Work
+  This branch has a little proof of concept using only shaders. The first 3 shader layers should work as normal, but the client (python-side) does know about the OSC addresses for the other graph nodes. Also: need some basic UI functionality for even the most advanced user, such as being able to turn off  "graph mode" (as I'm now calling it).
+*** Nodes
+    The following nodes need to be handled to catch up with recur:
+ - video player nodes
+ - uniform 'nodes'--there are OSC addresses but that's it
+
+Other nodes:
+ - static image nodes (this requires no effort really)
+ - compute nodes (e.g., using time) -- works once we have python osc dispatching [[Modular-style stuff]]
+ - 3D rendering nodes
+   
+Currently conjur loads a json file (`scene.json`) at setup which determines the shader order and will determine parameter setup. 
+
+*** Modular-style stuff
+More about this in the appendix [[Graphs and Modulations]]
+
+* Appendix
+
+
+** Addons / Tools
+ofxOSCPubSub  is nice, see IDEAS.org
+this branch also uses ofxAutoReloadedShader
+For development I find both QT Creator and Appcode to be really good for Openframeworks. I had a lot of trouble getting anything else tow ork.
+** 3D scenes
+'working' if you just uncomment it, and enable it by setting `enable : true` in scene.json. However, I get feedback and it looks real real wrong.
+
+Probably there should be an OSC switch to turn 3d mode off, like detour. Getting a user interface for 3D is not something I've thoguht about;
+the idea of using a graph, whether json or graphviz, comes from errogenous tones STRUCUTRE product; once the structure of the graph is determined, user interaction is simple again, and you could even render the object and some shaders without ever touching the 3d side; maybe hotkey some other models;
+then you use vertex uniforms as much as you can to effect 3D space, which recur already supports. 
+base.frag and base.vert work well with pikachu, who I got from https://github.com/Eoey1/OF-Shader-Exam
+This guy has very good practices and examples https://github.com/73-ch/vjSystem
+
+
+** Data Model
+it would be nice to have a data model so that you can validate graphs as being usable before trying to render them
+#+BEGIN_SRC python :result raw :session
+from toolz import dicttoolz as dtz
+from dataclasses import dataclass, field
+@dataclass
+class Shader:
+  id: str
+  u_x0: float = 0
+  u_x1: float = 0
+  u_x2: float = 0
+  u_x3: float = 0
+
+class GenShader(Shader): ...
+
+class Shader1(Shader):
+ u_tex0: Texture
+
+class Shader2(Shader1):
+ u_tex1: Texture
+
+sh = Shader("hypnotic_rings", 0.5, 0.5) # some new defaults
+
+# would expand to a [sub]graph like so:
+G.add_node(sh.id) # terminus
+for attr, v in dtz.dissoc(sh.__dict__, 'id').items():
+   G.add_node(attr, value=v)
+   G.add_edge(attr, sh.id)
+#+END_SRC
+
+
+
+** Graphs and Modulations
+ - it would be neat to do wave-forms, randomness and audio-reactivity through the graph; this requires processing the graph itself in either python or OF. 
+ - To do this in python requires programmatic OSC dispatch of attributes: right now that's setting uniforms and file loading. We could have python loop over the graph ever 100ms 'tick' and send its OSC, I suggest uniforms be sent via regular OSC, whereas changing the graph structure requires a reload of the json. (could be via osc)
+ - if you do the processing in OF (you could do it in both/either and send stuff back and forth via osc) you can use OpenCV to do stuff like video-reactive audio. however you have to implement it in C++, and you put more logic in the update/draw loop which is bad. Also the python implementation of this is already much of the way there because of the plugin work.
+ - Use with e.g. pysound to create audioreactivity etc.
+ -  You can implement static images, the video players, everything in the same way as I'm working with the shaders, I made an attempt recorded in IDEAS.org under "Abstraction for textures." There is a lot you can handle in that way (background colors, so on). But the way I would handle it is by letting all of these nodes be in the "orderedGraph" field of scene.json and handle them differently based on the filename (or some other label in the case of thing like light and camera).
+ - A shader can't be inactive if it's in the graph; however, it could be ran but not drawn, so that the texture could still be used by the next nodes
+
+*** Python Modular Connections
+Something like this, which sends OSC (kind of travels the graph independently of conjur)
+#+BEGIN_SRC python :results raw :session
+import random, math, operator
+from functools import partial
+
+def get_func(id, G):
+    d = G.nodes[id]
+    s = id.lower()
+    if d:
+        if 'value' in d: # const node
+            func = lambda: d['value']
+        if d.get('finish'): # terminal node
+            func = lambda *x: x
+    elif hasattr(operator, s):
+        func = getattr(operator, s)
+    elif hasattr(math, s):
+        func = getattr(math, s)
+    elif hasattr(random, s):
+        func = getattr(random, s)
+    else:
+        print(f"{id} complains. {d}")
+    return func
+# you could swap out `get_func` and make it an argument; that way you can build up
+# a list of commands (like stubs in lazy evaluation)  to render later
+def handle(G, RG, n):
+    func = get_func(n, G)
+    incoming = RG[n]
+    results = list(map(partial(handle, G, RG), incoming))
+    print(f"attmpting: {func} on {results} of {type({} if not results else results[0])}")
+    return func(*results)
+
+G = nx.DiGraph()
+G.add_nodes_from([('Add', {}), ('Mul', {}), ('Abs', {}), ('Sin', {}), 
+                  ('Const1', dict(value=2)), ('Const2', dict(value=3)), ('Random', {}),
+                  ("u_x0", dict(finish=True))])
+G.add_edges_from([('Const1', 'Sin'), ('Mul', 'Abs'), ('Const2', 'Add'), ('Random', 'Mul'),
+    ('Sin', 'Mul'), ('Abs', 'Add'), ('Add', 'u_x0')])
+RG = G.reverse()
+
+print( handle(G, RG, 'u_x0') )
+
+#+END_SRC
+
+
+*** Notes about modular
+You can use the interpreter pattern or the visitor pattern, and have python send out the computed state (i.e., the new uniform, rotation values, and file names, etc.)
+to c_o_n_j_u_r; conjur already has a lot of hooks, and you can add more easily if you use the ofxOSCPubSub addon, code for that below
+You can do the mathematical computations, parse audio data, etc. on the python side, and have the side-effects rendedered on the conjur side.
+
+It breaks down very simply as function composition/data flow, and can be modelled simply; if you consider that data is constantly flowing, the graph just represents a call stack.
+so you visit each node (order doesn't actually matter; you just need to start at the 'display' node (the terminal node might be missed otherwise)
+
+the incoming edges are the 'dependencies' that need to be resolved in order for the current node ot resolve itself and produces its own output (and render). 
+So you resolve dependencies recursively, storing the result in a dictionary. (for example, you've resolved the uniform, storing it in 'u_x0')
+ - nodes get `rendered` each cycle  [or just commands? / bindings / extractions? ]
+ - A bind of effect a to effect b is a combination of an extraction and a source
+ - how do we avoid re-rendering the graph every tick?
+ - put commands in a map by their offset so can do the following src block
+ - look for the interpreter pattern in java/c++ b/c that's what we're doing. 
+
+
+** Graphviz
+Use graphviz dot files to specify complex modulation setups. 
+If you don't want to work with dot files directly, you can convert them to json easily. 
+But Graphviz is very well suited  for 'live coding' applications in this space; it's a functional language supported by text editors, syntax highlighting, many libraries.
+It is very concise, and it can express data flow and operations very well. It's also easy to work with, because the nodes and edges are just dictionaries (hashmaps) after you parse them. 
+you could use labels for the file names or layer numbers or just use the IDs (which is what is actually written down)
+the named shaders would match up with those layers/slots and/or file names
+you can also specify stuff in the edges between nodes
+if you use the write editor the actual graph will render as a PNG in the same window (as with emacs org-babel) 
+in the following example, we use audio input attenuated by an OSC parameter, send it multiple places, every six seconds take a screenshot with detour
+we also take a snapshop with detour every six seconds and then pipe that back into our pipeline
+
+#+BEGIN_SRC dot :file with3D.png
+digraph LittleExample {
+ OSC -> u_x1 -> Mul2;
+ Audio -> LowPassFilter -> Mul2 -> u_x0;
+ u_x0 -> { GenShader, RotationX, ModelVertShader};
+ Model3D -> VertShader -> ModelFrag -> blur;
+ {blur, playerA} -> chromaKey;
+ LowPassfilter -> u_x9 -> chromaKey;
+ OSC[label="/shaders/param/1"];
+ PNG [filename="foobar.png"];
+ time -> Modulo6 -> detourTrigger -> PNG;  //
+ PNG -> Model3D [label="e.g. as texture"]; // or could go in a s
+ LowPassFilter -> BackgroundHue;
+ RotationX -> Camera;
+ {Camera, Model3D, BackgroundHue} -> Scene3D;
+}
+#+END_SRC
+
+#+RESULTS:
+[[file:state.png]]
+
+ 
+
+
+** More Compute Nodes
+ etc. see `dir(operator)`
+#+BEGIN_SRC python
+import math, operator, random
+
+Add
+Mul
+Abs
+lambda x: x
+Negate
+%
+math.sin
+lambda x, y: (x, y)
+operator.and_
+operator.or_
+random.random # random float b/w 0 and 1
+IfA = lambda a, b: a if (a and b) else EMPTY
+IfB =  lambda a, b: b if (a and b) else EMPTY
+Scale100 = partial(muler, _id='scale100', a=const(_c=100))
+First =  lambda a: a[0])
+Second = lambda a: a[1])
+
+def _clamp(start, end, a):
+    return min(max(start, a), end)
+    
+def _smoothstep(start, end, a):
+    t = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+    return t * t * (3.0 - 2.0 * t);
+def _mix(start, end, a):
+    start*(1.0 - a) + (end * a)
+Calmp  = partial(Node, _clamp) # etc.
+
+
+#+END_SRC
+
+
+
+Mike Panciera

@@ -1,11 +1,13 @@
 ofxOsc
-ofxOMXCamera
+# ofxOMXCamera
 ofxXmlSettings
 ofxVideoArtTools
 ofxVideoRecorder
-ofxOMXPlayer
+ofxAutoReloadedShader
+ofxAssimpModelLoader
+# ofxOMXPlayer
 ofxPoco
-ofxGPIO
+# ofxGPIO
 ofxMidi
 ofxJSON
 

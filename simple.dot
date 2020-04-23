@@ -1,0 +1,8 @@
+digraph G {
+hypnotic_rings [slot=0];
+mirror [slot=1];
+luma [slot=2];
+hypnotic_rings -> mirror -> wipe;
+line -> wipe -> invert;  
+{hypnotic_rings, invert} -> luma;
+}

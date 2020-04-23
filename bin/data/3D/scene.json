@@ -1,0 +1,71 @@
+{ 
+    "enable" : false,
+    "textureImage" : "3D/pikachu.png",
+    "vertShader" : "3D/base.vert",
+    "fragShader" : "3D/base.frag",
+    "model" : "3D/pikachu.obj",
+    "camera" : {
+        "position" : [0, 0, 200],
+        "distance" : 0.5
+               },
+    "light" : {
+        "on" : true,
+        "tiedToCamera" : true, 
+        "color" : [255, 255, 255]
+               },
+    "ofTranslationMod"  : [0, 0.5, 0],
+    "ofTrasnslateZero" : false,
+    "ofRotate" : [ 0, 1, 0 ],
+    "ofScale"  : [50, 50, 50],
+    "ofRotationAngle" : 10,
+    "textureOrder" : [ 0, 3, 4, 1, 2],
+    "orderedGraph" : [
+    {
+        "file": "shaders/line.frag",
+        "id": "line",
+        "inTextures": [],
+        "addresses": [
+            "shader/line"
+        ]
+    },
+    {
+        "file": "shaders/hypnotic_rings.frag",
+        "id": "hypnotic_rings",
+        "inTextures": [],
+        "addresses": [
+            "shader/hypnotic_rings"
+        ]
+    },
+    {
+        "file": "shaders/mirror.frag",
+        "id": "mirror",
+        "inTextures": [
+            "hypnotic_rings"
+        ],
+        "addresses": [
+            "shader/mirror"
+        ]
+    },
+    {
+        "file": "shaders/wipe.frag",
+        "id": "wipe",
+        "inTextures": [
+            "mirror",
+            "line"
+        ],
+        "addresses": [
+            "shader/wipe"
+        ]
+    },
+    {
+        "file": "shaders/invert.frag",
+        "id": "invert",
+        "inTextures": [
+            "wipe"
+        ],
+        "addresses": [
+            "shader/invert"
+        ]
+    }
+    ]
+}

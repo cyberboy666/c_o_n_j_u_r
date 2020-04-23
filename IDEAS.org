@@ -1,0 +1,501 @@
+**** Warning
+here be dragons.
+
+#+BEGIN_SRC dot :file modularComplex.png
+digraph G  {
+//    graph [fontsize=10 fontname="Verdana" compound=true];
+//    node [shape=record fontsize=10 fontname="Verdana"];
+    shape=record;
+    compound=true;
+    subgraph cluster_0 {
+        node [style=filled];
+      u_0 [label="/shader/params/u0"] 
+      u_1 [label="/shader/params/u1"] 
+      u_3 [label="/shader/params/u3"]   
+      u_2 [label="/shader/params/u2"];
+      u_swap [label="/shader/swapFile"];
+        label="OSC Stuff (implied elsewhere)"
+        style=dotted;
+    }
+   subgraph cluster_1 {
+       label="3D Scene";
+        node [style=filled];
+      bg [label="background"];
+      camera [label="camera"];
+      light  [label="light",type="unknown"];
+      shape [label="3D Model",shape=cylinder]
+      modelTex [label="etc."]
+        color=blue;
+} 
+ Model3D [label="Something.stl",shape=cylinder];
+ image [label="background.png"];
+ Grayscale [label="grayscale.frag",shape=octagon,style=bold];
+ Blur [label="blur.frag",shape=octagon,style=bold];
+ {light, camera} -> shape [label="target",style=dashed];
+ image [shape=rectangle]
+ image -> bg;     
+ u_3 -> Grayscale [label="more edges=re-use"];
+ u_swap -> Blur [style=dashed,label="otherFile.frag"];
+ u_3 -> Multiply2;
+ u_time [style=filled];
+ u_time -> Multiply2;
+ Modulo4 [label="Modulo4 (x % 4)"];
+ IF [label="IF (A && B): B" ];
+ Multiply [label="Multiply (scale)"];
+ u_time -> Modulo4 -> ToBoolean;
+ {ToBoolean, lightOn} -> IF;
+ IF -> light  [label="toggle on/off"];
+ HypRings -> Grayscale -> LumaKey;
+ u_time -> Sin -> Multiply;
+ ten [label="100.0",color=yellow];
+ ten -> Multiply [style=dashed];
+ Multiply -> RotateX [label="for scaling"];
+ Mirror [label="mirror.frag",shape=octagon,style=bold];
+ HypRings [label="hypnotic_rings.frag",shape=octagon];
+ AudioSource [style="filled"];
+ AudioSource -> BandPassFilter -> { BandLow };
+ AudioSource -> { BandHi, BandMid } [style=dashed];
+ BandLow -> Scale -> Invert -> RotateY;
+ {RotateY, RotateX}  -> camera;
+ Multiply2 -> speed_uniform -> HypRings;
+ { u_0, u_1, u_2 } -> HypRings [label="u_x*"];
+ moreosc [label="OSC (implied elsewhere)",style=filled];
+ unis [label="u_x4,u_x5...(implied elsewhere)"];
+ HypRings -> Blur;
+ moreosc -> unis  -> ModelVert;
+ // ChromaKey -> LumaKey -> DISPLAY;
+ { RotateY, RotateX } -> shape;
+ ChromaKey [label="chromaKey.frag",shape=doubleoctagon];
+ LumaKey [label="lumakey.frag",shape=doubleoctagon];
+ ModelVert [label="example.vert",shape=diamond];
+ ModelFrag [label="example.frag",shape=octagon,style=bold];
+ Model3D -> ModelVert -> ModelFrag -> shape;
+ modelTex -> Mirror [ltail=cluster_1,style=bold,color=blue];
+ DISPLAY [color=red,style="filled,bold",shape=square];
+ {Mirror, Blur} -> ChromaKey -> LumaKey -> DISPLAY;
+}
+#+END_SRC
+
+Here is a potential model for using arbitrary functions to represent graph nodes, essentially using them like 'modules' ala modular synthesis.
+history gives data represnetations (the name of the class and function) of a 'call graph' -- could be sent over osc as commands instead of evaluating them in python.
+#+BEGIN_SRC ein-python 
+from dataclasses import dataclass
+from typing import Callable, Any, T, Sequence, Tuple, Dict, Union, Any
+from typing_extensions import  Literal
+from toolz import dicttoolz as dtz
+from functools import partial 
+History = Sequence[Tuple[type, Dict[str, str]]]
+
+@dataclass
+class Node:
+  _func: Callable
+  edges: Dict[ str, 'Node' ] # could store edge types here
+  id: str
+  def edgeTypes(self) -> Dict[ str, type ]:
+    '''  useful for dot compilation'''
+  # TODO: this is a class (not instance) method;
+  # TODO: please don't use 'return' as an attr lol 
+    return tlz.dissoc( self._func.__annotations__, 'return' )
+
+  def apply(self) -> Tuple[Any, History]:
+    args, history = {}, []
+    for e, src in edges.items(): # the edge is the label basically
+      t, hist = src.apply()
+      history.append(hist)
+      args[e] = t
+    log = self.__class__, dtz.valmap(args, lambda x: x.id) # args.keys(), ags.values() 
+    history.append( log )
+    return _func(**args), history
+
+def _add(x: int, y: int) -> int: 
+  return x + y
+
+def _mul(x: int, y: int) -> int:
+    return x * y
+
+def _id(x: Any) -> Any:
+ return x
+
+
+Add = partial(Node, _add)
+Mul = partial(Node, _mul)
+class Const(Node):
+    def __init__(self, id, v):
+        self.id = id
+        self._func = lambda: (v, [])
+        self.edges = {}
+    def apply(self): return self._func()
+# just treat a uniforms like any other edge I guess
+Uniform = Const
+#+END_SRC
+
+ofxoscpubsub 
+
+#+BEGIN_SRC cpp
+ofxSubscribeOsc(ADDR, SUBPORT, "/3D/lightOn", lightOn);
+ofxSubscribeOsc(ADDR, SUBPORT, "/3D/camera/distance", &camera.getPosition());
+ofxSubscribeOsc(ADDR, SUBPORT, "/3D/scene/translation", sceneTranslation);
+ 
+ for (int i = 0; i < 6; i++) {
+   shaderUniformsF[ UNIFORM_PREFIX_FLOAT + ofToString(i) ] = 0;
+     }
+ for (int i = 0; i < 2; i++) {
+   shaderUniformsB[ UNIFORM_PREFIX_BOOL + ofToString(i) ] = false;
+     }
+ string EMPTY = "UNINITIALIZED";
+ string uname;
+ for (int i = 0; i < 2; i++) {
+   uname = UNIFORM_PREFIX_TEXTURE + ofToString(i);
+   shaderUniformsTexIds[ uname ] = EMPTY;
+   ofxSubscribeOsc(HOST, "/3D/shaderGraphExample/onlyOneShader/" + uname, [=](const string srcID)) {
+        shaderUniformsTexIds[ uname ] = srcID;
+     }
+  }
+ for (auto& p : shaderUniformsF ) {
+   addr = "/3D/model/" + "frag" + "/" + p.first;
+   // if we use the key, the types will still work out in the end
+   ofxSubscribeOsc(HOST, addr, [=](const float x) {
+         shaderUniformsF[p.first] = x;
+         }
+fxSubscribeOsc(HOST, "/3D/cam/position", [=](const glm::vec3 pos) {
+   camera.setPosition(pos); // camera.lookAt(lookat);
+
+#+END_SRC
+
+
+** Nonsense
+
+Node attributes are actually 'Source Nodes' within their larger node (subgraph)
+ Note: a const is different b/c it doesn't have to be recursively rendered
+ 'output' is just another thing to be extracted; it is the result of a side-effect of the container/subgraph (larger effects node)
+ however, you might consider extracing output as monadic; it is different from a node passing on its values;
+ though, consider this: any `Source` may have a monadic computation somewhere in its dependency trace. 
+ Addition is an example of one such 'side-effect'
+You would want to normalize the node representation; you fill in defaults, match special ids/labels, read in special attributes; you can also check
+the integrity of the graph if you want. You may even want to break nodes into smaller nodes, so that the user can specify a lot implicitly in a single node;
+then on the implementation side you break things down into simplest pieces. Not really needed, but it's interesting that the whole problem space can be represented, more or less,
+with individual nodes with single attributes, which can PUT or GET or perform binary or unary operations.
+
+
+
+ Here is a little 'algebra' of commands to be sent over OSC not to difficult for the OF side to handle this by storing it in state via hooks when commands come in and then rendering as usual on the update() and draw() methods
+#+BEGIN_SRC python
+
+
+class Command:
+ requireChange: bool
+
+class ChangeCommand(Command):
+  '''only run this command if inputs have changed.
+  The python side of things should have been able to figure that out, though, probably....'''
+  requireChange = True 
+
+class AlwaysCommand(Command):
+ requireChange = False
+
+class ShaderBegin(AlwaysCommand): ...
+
+class LoadFile(ChangeCommand):
+ node: Node # /  ID
+ fileName: str
+
+class SetUniform(ChangeCommand):
+ uniform: Node
+
+def shader_0_input(fileName: str, *uniforms) -> Texture: # u_x0: float, u_x1: float, u_x2: float, u_x3: float) -> Texture:
+   # need an id for these commands.
+  cmds = [ SetUniform( u.utype, u.label, u.value, u.id ) for u in uniforms ] # requires access to the node ids
+  cmds += [ LoadFile(fileName) ] 
+  cmds += [ ShaderBegin() ]
+  return cmds
+
+
+class Command:
+ requireChange: bool
+
+class ChangeCommand(Command):
+  '''only run this command if inputs have changed.
+  The python side of things should have been able to figure that out, though, probably....'''
+  requireChange = True 
+
+class AlwaysCommand(Command):
+ requireChange = False
+
+class ShaderBegin(AlwaysCommand): ...
+
+class LoadFile(ChangeCommand):
+ node: Node # /  ID
+ fileName: str
+
+class SetUniform(ChangeCommand):
+ uniform: Node
+
+def shader_0_input(fileName: str, *uniforms) -> Texture: # u_x0: float, u_x1: float, u_x2: float, u_x3: float) -> Texture:
+   # need an id for these commands.
+  cmds = [ SetUniform( u.utype, u.label, u.value, u.id ) for u in uniforms ] # requires access to the node ids
+  cmds += [ LoadFile(fileName) ] 
+  cmds += [ ShaderBegin() ]
+  return cmds
+
+
+#+END_SRC
+
+
+not sure why the below would ever be useful
+
+
+#+BEGIN_SRC python
+to_visit[0]
+Primitives = (bool, str, float)
+MODELEXTS = ('.stl', '.obj') # etc.
+def fix_node(id: str, dotData: dict):
+    label = node['label'].strip()
+    if label.endswith('.vert'):
+        node = VertNodeInfo(filename=label)
+    elif label.endswith('.frag'):
+        node = FragNodeInfo(filename=label)
+    elif any( (label.endswith(ext) for ext in MODELEXTS) ):
+        node = ModelNodeInfo(filename=label)
+    elif label.startswith('u_'):
+        u_type = dotData.get('type')
+        if not u_type:
+            warning_log(f"suspicious u_ prefix in {id} metadata {dotData}")
+            continue
+        node = UniformNodeInfo(name=label, type=u_type)
+    elif label.endswith('.png'):
+        node = TextureNodeInfo(filename=label)
+    else:
+        any ( label.startswith(t) for t in 
+    
+        
+def visit_node(id: str, dotData: dict):
+class RecurNode(NodeInfo):
+    id: str
+    metadata: dict
+    edges: dict
+    def visit()
+
+#+END_SRC
+
+
+*** Abstraction for textures
+#+BEGIN_SRC cpp :result raw :flags -std=c++11
+#include "stdio.h"
+#include <vector>
+#include <string>
+#include <iostream>
+
+typedef std::string conjur;
+typedef std::string ofTexture; typedef std::string ofImage; typedef std::string ofPixels;
+
+class recurNode {
+public:
+  virtual ofTexture render(int width, int height, std::vector<ofTexture> textures) = 0;
+  //void setup(string file) = 0;
+};
+
+class shaderNode : public recurNode {
+public:
+  ofTexture render(int width, int height, std::vector<ofTexture> textures) {
+     fbo = shader.apply(textures);
+     return fbo.getTexture();
+ }
+  //void setup() {std::cout << "setting up";};
+  shaderNode(conjur sh) { shader = sh; };
+private: conjur shader;
+};
+
+class videoNode : public recurNode {
+  ofTexture render(int width, int height, std::vector<ofTexture> textures) {
+    if (player.alpha > 0 && ( player.status == "PLAYING" || player.status == "PAUSED" ) ){
+        player.draw(0, 0, width, height);
+        return player.getTexture();
+  }
+}
+  //void setup() {std::cout << "setting up";};
+  videoNode(recurVideoPlayer pl) { player = pl; };
+  private: recurVideoPlayer player;
+}
+
+class videoNode : public recurNode {
+  ofTexture render(int width, int height, std::vector<ofTexture> textures) {
+        videoGrabber.draw(0,0, width, height);
+        return videoGrabber.getTexture();
+}
+  //void setup() {std::cout << "setting up";};
+  videoNode(captur gr) { videoGrabber = gr; };
+  private: captur videoGrabber;
+}
+
+class imageNode : public recurNode {
+public:
+  ofTexture render(int width, int height, std::vector<ofTexture> textures) {
+     ofPixels pixels = img.getPixels();
+     ofTexture outTexture;
+     outTexture.loadData(pixels.getData(), pixels.getWidth(), pixels.getHeight(), GL_RGB);
+     img.draw(0, 0, width, height);
+     return outTexture;
+ }
+  //void setup() {std::cout << "setting up";};
+  imageNode(ofImage im) { img = im; };
+
+private: ofImage img;
+  };
+int main () {
+ printf("HIL");
+ shaderNode n { "foo" };
+ n.setup();
+ n.render({});
+}
+#+END_SRC
+
+
+
+
+
+Here is an example of loading the above graphviz code into python, more on that elsewhere
+
+#+BEGIN_SRC python
+from typing import NamedTuple
+import networkx as nx
+# you also need to install pygraphviz for this to work
+dotFile = open('modularComp.dot')
+g = nx.drawing.nx_agraph.read_dot(dotFile)
+dag = g.to_directed()
+sort_iterator = nx.algorithms.dag.topological_sort(g)
+# the below gives a tuple of the nodes's ID (as written in the file) and all of the metadata of the node
+# i.e. label, type, filename, whatever.
+dependency_sorted = [NodeInfo(k, dag.nodes[k]) for k in sort_iterator]
+#+END_SRC
+
+** via Polymorphism
+i.e. 
+#+BEGIN_SRC cpp
+typedef mpark::variant<ofImage,ofShader,recurVideoPlayer,captur,ofLight> recurValue;
+struct renderVisitor {
+    ofTexture operator()(ofImg img) 
+}
+int result = mpark::visit( simpleVisitor{}, u );
+#+END_SRC
+
+
+* More thoughts
+shader nodes which are in the slots (shader layers) need a special label so that they can be updated when the existing OSC hooks are called
+the JSON generaed from the graph parse includes the OSC addresses (guaranteeing consistency) so the OF side just has to add the hook
+alternatively something like below, which is useful for validating the graph
+you could make secret OSC addresses for more or less /all/ nodes, allowing their output value to be over-written by the user
+but here we just generate from default/const nodes
+
+There is a metadata representation of shaders, image textures, etc. that is worth considering seperately from
+the graph representation. 
+That metadata is easily represented in struct/namedtuples/dataclasses
+You can use this metadata to check the integrity of the graph (for example: a shader (or other node) should always have exactly as many incoming edges as it can [considering default values as incoming edges of `Const` nodes. You can also check the types and match them up, etc.
+
+** Ambitions
+
+#+BEGIN_SRC dot :file state.png
+digraph StateExample {
+ LastState -> Adder [bind=X]
+ OSC -> Adder [bind=Y]
+ Adder -> NewRotation
+ Adder -> LastState [label="IO"]
+}
+#+END_SRC
+
+** obsolete or broken code
+
+
+#+BEGIN_SRC python
+def make_addresses(id):
+  incoming = G.predecessors(id)
+  # get nodetype via label on original dot file or extrapolation afterwards
+  address = [] 
+  for inEdge in incoming:
+    default = RG.nodes[inEdge].get('value'):
+    if not (default is None):
+      # we'll tell what type for OF to parse the thing as too I guess
+      addresses.append( (f"/{nodeType}/{id}/{inEdge}/", type(default)) ) # i.e. "/shader/hypnotic_frag/u_x0"
+      # basically the input id is equivalent to an edge label or the target node's attribute
+      slot =  RG.nodes[id].get('slot')
+      if not (slot is None):
+         address.append( (f"/{nodeType}/{slot}/{inEdge}", type(default) ) ) # i.e. "/shader/0/u_x0"
+   return addresses 
+
+  # nodeType = id.lower().strip( set(string.printable) - set(string.ascii_letters) )
+#+END_SRC
+
+
+#+BEGIN_SRC python
+def recursiveVisist(node: Node) -> dict:
+   attributes = {}
+   for edgeName, dependency in node.incomingEdges.items():
+      # if an attribute hasn't changed, don't update it so you don't send the osc
+      if self.attributes
+      newAttributes[edgeName = recursiveVisit(dependency)
+   #newAttributes.update(self.attributes)
+   result = self.compute(**newAttributes)
+   self.attributes = newAttributes
+   return result
+
+recursiveVisist( terminalDisplayNode )
+
+# i.e.
+class Node(NamedTuple):
+  func: Callable
+  id: str
+  def compute(self, **kwargs):
+    func(**kwargs)
+
+  def recursiveVisist().... # etc.
+
+
+class Shader(Node):
+   # earlier:
+    edges = {'uniforms' :  [0,  0.0] } # etc. u_x1, u_x2, u_x3,
+  # def compute(self, u_x0, u_x1, u_x2, u_x3, tex0=None, tex1=None):
+  def compute(self, uniforms, tex0=None, tex1=None):
+    for i, value in enumerate(uniforms):
+      sendosc( f"/shader/{self.id}/{i}", value)
+    # a shader doesn't actually have a result, so just indicate that it can be used  as input texture
+    return Texture(self.id)
+
+class Add(Node):
+  def compute(self, a, b):
+    return a + b    
+# OR
+from functools import partial
+import operator
+
+Add = partial(Node, operator.add)
+
+# below are root nodes, they have no incoming attributes
+class Data(Node):
+  def __init__(self, data):
+    self.data = data
+  def compute(self):
+    return data
+
+class OSCListener(Node):
+  address: str  # with NamedTuple/dataclass, don't need an explicit __init__
+  inputype: int
+  def compute():
+    # listen for osc...
+ 
+#+END_SRC
+
+#+BEGIN_SRC cpp 
+class Adder {
+  int X;
+  int Y;
+  int visit() {
+    return X + Y;
+ }
+}
+#+END_SRC 
+
+Note that the type of NOT :: Int -> Int # and may be a special case of MUL
+it may be better to define the whole thing as a pure function rather than store any state, with the state being modelled somehow by Source nodes
+(i.e., last state). 
+the default tick is constant
+the other one is infinite: i.e. loading file happens only once
+Note that a clock-trigger is achieved by creating time as source :: IO Float and applying modulo after its extraction
